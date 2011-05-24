@@ -5,11 +5,9 @@
 	 */
 	
 	/**
-	 * Email creation and sending API.
+	 * A new link field, used to build hierarchical content.
 	 */
 	class Extension_Breadcrumb_Field extends Extension {
-		protected $addedPublishHeaders = false;
-		
 		/**
 		 * Extension information.
 		 */
@@ -22,6 +20,19 @@
 					'name'			=> 'Rowan Lewis',
 					'website'		=> 'http://rowanlewis.com/',
 					'email'			=> 'me@rowanlewis.com'
+				)
+			);
+		}
+		
+		/**
+		 * Listen for these delegates.
+		 */
+		public function getSubscribedDelegates() {
+			return array(
+				array(
+					'page' => '/extension/breadcrumb_ui/',
+					'delegate' => 'AppendBreadcrumbOptions',
+					'callback' => 'appendBreadcrumbOptions'
 				)
 			);
 		}
@@ -50,16 +61,11 @@
 			return true;
 		}
 		
-		/**
-		 * Add stylesheets and scripts to page header.
-		 */
-		public function addPublishHeaders() {
-			if (!$this->addedPublishHeaders && isset(Symphony::Engine()->Page)) {
-				$page = Symphony::Engine()->Page;
-				$page->addStylesheetToHead(URL . '/extensions/breadcrumb_field/assets/publish.css');
-				$page->addScriptToHead(URL . '/extensions/breadcrumb_field/assets/symphony.breadcrumb.js');
-				$page->addScriptToHead(URL . '/extensions/breadcrumb_field/assets/publish.js');
-			}
+		public function appendBreadcrumbOptions($context) {
+			$context['options'] = array(
+				'1'		=> 'Dummy',
+				'2'		=> 'Data'
+			);
 		}
 	}
 	

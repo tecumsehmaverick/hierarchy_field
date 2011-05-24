@@ -5,6 +5,8 @@
 	 */
 	
 	if (!defined('__IN_SYMPHONY__')) die('<h2>Symphony Error</h2><p>You cannot directly access this file</p>');
+	
+	require_once EXTENSIONS . '/breadcrumb_ui/lib/class.breadcrumb_ui.php';
 
 	class FieldBreadcrumb extends Field {
 		protected $driver = null;
@@ -154,38 +156,28 @@
 		 *	the entry id of this field. this defaults to null.
 		 */
 		public function displayPublishPanel($wrapper, $data = null, $error = null, $prefix = null, $postfix = null, $entry_id = null) {
-			$this->driver->addPublishHeaders();
-
 			$sortorder = $this->get('sortorder');
 			$element_name = $this->get('element_name');
 			
-			$group = new XMLElement('div');
-			$group->setAttribute('data-breadcrumb', $entry_id);
 			$label = Widget::Label($this->get('label'));
-			$list = new XMLElement('ol');
-			$list->setAttribute('class', 'breadcrumb');
+			$breadcrumb = new BreadcrumbUI($entry_id);
+			$breadcrumb->setData('field', $this->get('id'));
 			
-			$breadcrumb = array(
+			$items = array(
 				0 => 'News',
 				1 => 'Politics'
 			);
 			
-			foreach ($breadcrumb as $id => $title) {
-				$item = new XMLElement('li');
-				$item->setAttribute('class', 'item');
-				$item->setAttribute('data-id', $id);
-				$item->setValue($title);
-				$list->appendChild($item);
+			foreach ($items as $id => $title) {
+				$breadcrumb->appendItem($id, $title);
 			}
 			
-			$group->appendChild($list);
-			
 			if ($error != null) {
-				$group = Widget::wrapFormElementWithError($group, $error);
+				$breadcrumb = Widget::wrapFormElementWithError($group, $error);
 			}
 
 			$wrapper->appendChild($label);
-			$wrapper->appendChild($group);
+			$wrapper->appendChild($breadcrumb);
 		}
 		
 		/**

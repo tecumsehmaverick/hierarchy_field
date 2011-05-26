@@ -225,7 +225,7 @@
 			}
 			
 			if (!$link instanceof XMLElement) {
-				array_shift($links);
+				array_pop($links);
 			}
 			
 			if ($link instanceof XMLElement) {

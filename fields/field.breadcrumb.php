@@ -179,8 +179,6 @@
 				);
 			}
 			
-			$this->driver->getChildEntries($this->get('id'), $entry_id);
-			
 			foreach ($items as $id => $title) {
 				$breadcrumb->appendItem($id, $title);
 			}

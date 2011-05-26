@@ -121,7 +121,7 @@
 			$entries = $em->fetch($entry_ids, $section->get('id'));
 			
 			// Find parent entry titles:
-			$titles = array();
+			$titles = array_flip($entry_ids);
 			
 			foreach ($entries as $entry) {
 				$titles[$entry->get('id')] = $this->getEntryTitle($entry, $title);
@@ -186,7 +186,7 @@
 			$entries = $em->fetch($entry_ids, $section->get('id'));
 			
 			// Find parent entry titles:
-			$titles = array();
+			$titles = array_flip($entry_ids);
 			
 			foreach ($entries as $entry) {
 				if ($entry->get('id') == $ignore_id) continue;

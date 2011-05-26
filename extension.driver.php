@@ -189,7 +189,10 @@
 			$titles = array_flip($entry_ids);
 			
 			foreach ($entries as $entry) {
-				if ($entry->get('id') == $ignore_id) continue;
+				if ($entry->get('id') == $ignore_id) {
+					unset($titles[$entry->get('id')]);
+					continue;
+				}
 				
 				$titles[$entry->get('id')] = $this->getEntryTitle($entry, $title);
 			}

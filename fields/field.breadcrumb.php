@@ -39,10 +39,12 @@
 					`id` int(11) unsigned NOT NULL auto_increment,
 					`entry_id` int(11) unsigned NOT NULL,
 					`relation_id` int(11) unsigned DEFAULT NULL,
-					`value` TEXT DEFAULT NULL,
+					`value` text DEFAULT NULL,
+					`depth` int(11) unsigned NOT NULL,
 					PRIMARY KEY	(`id`),
 					KEY `entry_id` (`entry_id`),
 					KEY `relation_id` (`relation_id`)
+					KEY `depth` (`depth`)
 				) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 			");
 		}
@@ -156,17 +158,28 @@
 		 *	the entry id of this field. this defaults to null.
 		 */
 		public function displayPublishPanel($wrapper, $data = null, $error = null, $prefix = null, $postfix = null, $entry_id = null) {
-			$sortorder = $this->get('sortorder');
-			$element_name = $this->get('element_name');
+			$items = array();
+			$name = sprintf(
+				'fields%s[%s]%s',
+				$prefix,
+				$this->get('element_name'),
+				$postfix
+			);
 			
 			$label = Widget::Label($this->get('label'));
-			$breadcrumb = new BreadcrumbUI($entry_id);
+			$breadcrumb = new BreadcrumbUI($name);
+			$breadcrumb->setData('type', $this->get('type'));
 			$breadcrumb->setData('field', $this->get('id'));
+			$breadcrumb->setData('entry', $entry_id);
 			
-			$items = array(
-				0 => 'News',
-				1 => 'Politics'
-			);
+			if (isset($data['relation_id'])) {
+				$items = $this->driver->getParentEntries(
+					$this->get('id'),
+					$data['relation_id']
+				);
+			}
+			
+			$this->driver->getChildEntries($this->get('id'), $entry_id);
 			
 			foreach ($items as $id => $title) {
 				$breadcrumb->appendItem($id, $title);
@@ -190,6 +203,50 @@
 			if (!isset($fields['show_association'])) {
 				$fields['show_association'] = 'yes';
 			}
+		}
+		
+		public function prepareTableValue($data, XMLElement $link = null, $entry_id = null) {
+			if ($entry_id == null) return parent::prepareTableValue(null, $link);
+			
+			$items = $this->driver->getParentEntries($this->get('id'), $entry_id);
+			$sm = new SectionManager(Symphony::Engine());
+			$section = $sm->fetch($this->get('parent_section'));
+			$links = array();
+			
+			foreach ($items as $entry_id => $item) {
+				$element = new XMLElement('a');
+				$element->setAttribute('href', sprintf(
+					'%s/publish/%s/edit/%d',
+					SYMPHONY_URL,
+					$section->get('handle'),
+					$entry_id
+				));
+				$element->setValue($item);
+				
+				$links[] = $element->generate();
+			}
+			
+			if (!$link instanceof XMLElement) {
+				array_shift($links);
+			}
+			
+			if ($link instanceof XMLElement) {
+				return implode(' ◂ ', array_reverse($links));
+			}
+			
+			else {
+				return implode(' ▸ ', $links);
+			}
+		}
+
+		public function processRawFieldData($data, &$status, $simulate = false, $entry_id = null) {
+			if (empty($data)) return null;
+			
+			$result = array(
+				'relation_id'	=> $data
+			);
+			
+			return $result;
 		}
 	}
 

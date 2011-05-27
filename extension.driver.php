@@ -142,6 +142,15 @@
 			if (empty($entry_ids)) return array();
 			
 			$entries = $em->fetch($entry_ids, $section->get('id'));
+			
+			// Sort entries by ID so that that appear in the same
+			// order as the $entry_ids variable:
+			usort($entries, function($a, $b) use ($entry_ids) {
+				return array_search($a->get('id'), $entry_ids)
+					> array_search($b->get('id'), $entry_ids);
+			});
+			
+			// Remove ignored entry:
 			$entries = array_filter($entries, function($entry) use ($ignore_id) {
 				return $entry->get('id') != $ignore_id;
 			});
@@ -149,7 +158,7 @@
 			if (!$as_titles) return $entries;
 			
 			// Find parent entry titles:
-			$titles = array_flip($entry_ids);
+			$titles = array();
 			
 			foreach ($entries as $entry) {
 				$titles[$entry->get('id')] = $this->getBreadcrumbEntryTitle($entry, $title);

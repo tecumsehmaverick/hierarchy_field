@@ -222,6 +222,8 @@
 				$suffix
 			);
 			
+			$this->driver->getBreadcrumbChildren(11, $this, 24);
+			
 			$label = Widget::Label($this->get('label'));
 			$breadcrumb = new BreadcrumbUI($name);
 			$breadcrumb->setData('type', $this->get('type'));

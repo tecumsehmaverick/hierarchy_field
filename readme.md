@@ -25,7 +25,7 @@ __GitHub Repository:__ <http://github.com/rowan-lewis/breadcrumb_field>
 The Breadcrumb interface may be a little confusing. The first thing you'll see is two buttons:
 
     ┌───┬───┐
-    │ ✕ │ ▾ │
+    │ ☓ │ ▾ │
     └───┴───┘
 
 The first button is the clear button, if there where any items in the breadcrumb it would remove them, the second button is the add item button. If you don't have any entries in your section, clicking the add item button won't do anything.
@@ -33,7 +33,7 @@ The first button is the clear button, if there where any items in the breadcrumb
 After clicking the add item button you will see this:
 
     ┌───┬───┐
-    │ ✕ │ ▾ │
+    │ ☓ │ ▾ │
     └───┴───┘
          ┌^────────────────┐
          │ An entry        │
@@ -46,7 +46,7 @@ After clicking the add item button you will see this:
 Clicking on one of the drop down options will add it to your breadcrumb:
 
     ┌───┬───────────────┬───┐
-    │ ✕ │ Another entry │ ▾ │
+    │ ☓ │ Another entry │ ▾ │
     └───┴───────────────┴───┘
 
 If you click on the add item button again, it will give you a list of entries aleady linked to the last item in the breadcrumb.

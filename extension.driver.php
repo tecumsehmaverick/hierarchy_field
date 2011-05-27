@@ -4,6 +4,10 @@
 	 * @package breadcrumb_field
 	 */
 	
+	require_once TOOLKIT . '/class.entrymanager.php';
+	require_once TOOLKIT . '/class.fieldmanager.php';
+	require_once TOOLKIT . '/class.sectionmanager.php';
+	
 	/**
 	 * A new link field, used to build hierarchical content.
 	 */

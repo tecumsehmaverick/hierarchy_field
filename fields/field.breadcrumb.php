@@ -146,24 +146,24 @@
 		 *	this is encoded as an array of columns, each column maps to an
 		 *	array of row indexes to the contents of that column. this defaults
 		 *	to null.
-		 * @param mixed $flagWithError (optional)
+		 * @param mixed $error (optional)
 		 *	flag with error defaults to null.
-		 * @param string $fieldnamePrefix (optional)
+		 * @param string $prefix (optional)
 		 *	the string to be prepended to the display of the name of this field.
 		 *	this defaults to null.
-		 * @param string $fieldnameSuffix (optional)
+		 * @param string $suffix (optional)
 		 *	the string to be appended to the display of the name of this field.
 		 *	this defaults to null.
 		 * @param integer $entry_id (optional)
 		 *	the entry id of this field. this defaults to null.
 		 */
-		public function displayPublishPanel($wrapper, $data = null, $error = null, $prefix = null, $postfix = null, $entry_id = null) {
+		public function displayPublishPanel($wrapper, $data = null, $error = null, $prefix = null, $suffix = null, $entry_id = null) {
 			$items = array();
 			$name = sprintf(
 				'fields%s[%s]%s',
 				$prefix,
 				$this->get('element_name'),
-				$postfix
+				$suffix
 			);
 			
 			$label = Widget::Label($this->get('label'));
@@ -203,6 +203,20 @@
 			}
 		}
 		
+		/**
+		 * Format this field value for display in the publish index tables. By default,
+		 * Symphony will truncate the value to the configuration setting `cell_truncation_length`.
+		 * This function will attempt to use PHP's `mbstring` functions if they are available.
+		 *
+		 * @param array $data
+		 *	an associative array of data for this string. At minimum this requires a
+		 *  key of 'value'.
+		 * @param XMLElement $link (optional)
+		 *	an xml link structure to append the content of this to provided it is not
+		 *	null. it defaults to null.
+		 * @return string
+		 *	the formatted string summary of the values of this field instance.
+		 */
 		public function prepareTableValue($data, XMLElement $link = null, $entry_id = null) {
 			if ($entry_id == null) return parent::prepareTableValue(null, $link);
 			
@@ -237,6 +251,23 @@
 			}
 		}
 
+		/**
+		 * Process the raw field data.
+		 *
+		 * @param mixed $data
+		 *	post data from the entry form
+		 * @param integer $status
+		 *	the status code resultant from processing the data.
+		 * @param boolean $simulate (optional)
+		 *	true if this will tell the CF's to simulate data creation, false
+		 *	otherwise. this defaults to false. this is important if clients
+		 *	will be deleting or adding data outside of the main entry object
+		 *	commit function.
+		 * @param mixed $entry_id (optional)
+		 *	the current entry. defaults to null.
+		 * @return array
+		 *	the processed field data.
+		 */
 		public function processRawFieldData($data, &$status, $simulate = false, $entry_id = null) {
 			if (empty($data)) return null;
 			

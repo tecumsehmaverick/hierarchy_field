@@ -43,7 +43,7 @@
 					`depth` int(11) unsigned NOT NULL,
 					PRIMARY KEY	(`id`),
 					KEY `entry_id` (`entry_id`),
-					KEY `relation_id` (`relation_id`)
+					KEY `relation_id` (`relation_id`),
 					KEY `depth` (`depth`)
 				) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 			");

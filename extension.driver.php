@@ -65,47 +65,107 @@
 			return true;
 		}
 		
-		public function getBreadcrumbSection($field) {
+		/**
+		 * Respond to AJAX query asking for options.
+		 */
+		public function appendBreadcrumbOptions($context) {
+			if ($context['data']['type'] != 'breadcrumb') return;
+			
+			$fm = new FieldManager(Symphony::Engine());
+			$entry_id = $context['data']['item'];
+			$field = $fm->fetch($context['data']['field']);
+			$ignore_id = $context['data']['entry'];
+			
+			$context['options'] = $this->getBreadcrumbChildren(
+				$entry_id, $field, $ignore_id, true
+			);
+		}
+		
+		/**
+		 * Get a list of child entries.
+		 * @param integer $entry_id
+		 * @param Field $field
+		 * @param integer $ignore_id
+		 *	Don't output entries with this ID.
+		 * @param boolean $as_titles
+		 *	Return as a list of entry titles.
+		 */
+		public function getBreadcrumbChildren($entry_id, Field $field, $ignore_id = null, $as_titles = true) {
+			$db = Symphony::Database();
+			$em = new EntryManager(Symphony::Engine());
 			$sm = new SectionManager(Symphony::Engine());
 			
-			return $sm->fetch($field->get('parent_section'));
-		}
-		
-		public function getBreadcrumbTitle($section) {
-			$fields = $section->fetchVisibleColumns();
+			$section = $sm->fetch($field->get('parent_section'));
+			$title = $this->getBreadcrumbTitle($section);
+			$parent = $em->fetch($entry_id);
 			
-			if (empty($fields)) return null;
+			// Do nothing if there are no visible fields:
+			if ($title === null) return array();
 			
-			foreach ($fields as $field) {
-				if ($field instanceof FieldBreadcrumb) continue;
-				
-				return $field;
+			if ($parent === false) {
+				/**
+				 * @todo This query is probably very slow.
+				 */
+				$entry_ids = $db->fetchCol('id', sprintf('
+					SELECT DISTINCT
+						e.id
+					FROM
+						`tbl_entries` AS e
+					WHERE
+						e.section_id = %d
+						AND e.id NOT IN (
+							SELECT
+								d.entry_id
+							FROM
+								`tbl_entries_data_%d` AS d
+						)
+					',
+					$section->get('id'),
+					$field->get('id')
+				));
 			}
-		}
-		
-		public function getBreadcrumbEntryHandle($entry, $field) {
-			$data = $entry->getData($field->get('id'));
-			$span = new XMLElement('span');
 			
-			if (isset($data['handle'])) {
-				return $data['handle'];
+			else {
+				$parent = current($parent);
+				$entry_ids = $db->fetchCol('entry_id', sprintf('
+					SELECT
+						d.entry_id
+					FROM
+						`tbl_entries_data_%d` AS d
+					WHERE
+						d.relation_id = %d
+					',
+					$field->get('id'), $entry_id
+				));
 			}
 			
-			$field->prepareTableValue($data, $span, $entry->get('id'));
+			if (empty($entry_ids)) return array();
 			
-			return Lang::createHandle(strip_tags($span->generate()));
+			$entries = $em->fetch($entry_ids, $section->get('id'));
+			$entries = array_filter($entries, function($entry) use ($ignore_id) {
+				return $entry->get('id') != $ignore_id;
+			});
+			
+			if (!$as_titles) return $entries;
+			
+			// Find parent entry titles:
+			$titles = array_flip($entry_ids);
+			
+			foreach ($entries as $entry) {
+				$titles[$entry->get('id')] = $this->getBreadcrumbEntryTitle($entry, $title);
+			}
+			
+			return $titles;
 		}
 		
-		public function getBreadcrumbEntryTitle($entry, $field) {
-			$data = $entry->getData($field->get('id'));
-			$span = new XMLElement('span');
-			
-			$field->prepareTableValue($data, $span, $entry->get('id'));
-			
-			return General::sanitize(strip_tags($span->generate()));
-		}
-		
-		public function getBreadcrumbParents($field_id, $entry_id, $as_titles = false) {
+		/**
+		 * Get a list of all parent entries of a particular entry.
+		 * @param integer $entry_id
+		 * @param Field $field
+		 * @param boolean $as_titles
+		 *	Return as a list of entry titles.
+		 */
+		public function getBreadcrumbParents($entry_id, Field $field, $as_titles = false) {
 			$db = Symphony::Database();
 			$em = new EntryManager(Symphony::Engine());
 			$sm = new SectionManager(Symphony::Engine());
@@ -132,7 +192,7 @@
 					WHERE
 						d.entry_id = %d
 					',
-					$field_id, $entry_id
+					$field->get('id'), $entry_id
 				));
 				
 				if (empty($current)) break;
@@ -162,84 +222,65 @@
 			return $titles;
 		}
 		
-		public function getBreadcrumbChildren($field_id, $entry_id = null, $ignore_id = null) {
-			$db = Symphony::Database();
-			$em = new EntryManager(Symphony::Engine());
-			$fm = new FieldManager(Symphony::Engine());
-			$sm = new SectionManager(Symphony::Engine());
+		/**
+		 * Get the existing handle of an entry, or generate one if
+		 * no handle exists.
+		 * @param Entry $entry
+		 * @param Field $field
+		 */
+		public function getBreadcrumbEntryHandle(Entry $entry, Field $field) {
+			$data = $entry->getData($field->get('id'));
+			$span = new XMLElement('span');
 			
-			$field = $fm->fetch($field_id);
-			$section = $sm->fetch($field->get('parent_section'));
-			$title = $this->getBreadcrumbTitle($section);
-			$parent = $em->fetch($entry_id);
-			
-			// Do nothing if there are no visible fields:
-			if ($title === null) return array();
-			
-			if ($parent === false) {
-				/**
-				 * @todo This query is probably very slow.
-				 */
-				$entry_ids = $db->fetchCol('id', sprintf('
-					SELECT DISTINCT
-						e.id
-					FROM
-						`tbl_entries` AS e
-					WHERE
-						e.section_id = %d
-						AND e.id NOT IN (
-							SELECT
-								d.entry_id
-							FROM
-								`tbl_entries_data_%d` AS d
-						)
-					',
-					$section->get('id'),
-					$field_id
-				));
+			if (isset($data['handle'])) {
+				return $data['handle'];
 			}
 			
-			else {
-				$parent = current($parent);
-				$entry_ids = $db->fetchCol('entry_id', sprintf('
-					SELECT
-						d.entry_id
-					FROM
-						`tbl_entries_data_%d` AS d
-					WHERE
-						d.relation_id = %d
-					',
-					$field_id, $entry_id
-				));
-			}
+			$field->prepareTableValue($data, $span, $entry->get('id'));
 			
-			if (empty($entry_ids)) return array();
-			
-			$entries = $em->fetch($entry_ids, $section->get('id'));
-			
-			// Find parent entry titles:
-			$titles = array_flip($entry_ids);
-			
-			foreach ($entries as $entry) {
-				if ($entry->get('id') == $ignore_id) {
-					unset($titles[$entry->get('id')]);
-					continue;
-				}
-				
-				$titles[$entry->get('id')] = $this->getBreadcrumbEntryTitle($entry, $title);
-			}
-			
-			return $titles;
+			return Lang::createHandle(strip_tags($span->generate()));
 		}
 		
-		public function appendBreadcrumbOptions($context) {
-			if ($context['data']['type'] != 'breadcrumb') return;
+		/**
+		 * Get the title value of an entry.
+		 * @param Entry $entry
+		 * @param Field $field
+		 */
+		public function getBreadcrumbEntryTitle($entry, $field) {
+			$data = $entry->getData($field->get('id'));
+			$span = new XMLElement('span');
 			
-			$context['options'] = $this->getBreadcrumbChildren(
-				$context['data']['field'],
-				$context['data']['location'],
-				$context['data']['entry']
-			);
+			$field->prepareTableValue($data, $span, $entry->get('id'));
+			
+			return General::sanitize(strip_tags($span->generate()));
+		}
+		
+		/**
+		 * Quick method for fetching the section a field
+		 * belongs to.
+		 * @param Field $field
+		 */
+		public function getBreadcrumbSection(Field $field) {
+			$sm = new SectionManager(Symphony::Engine());
+			
+			return $sm->fetch($field->get('parent_section'));
+		}
+		
+		/**
+		 * Find the first visible field in a section that is
+		 * not a breadcrumb field.
+		 * @param Section $section
+		 */
+		public function getBreadcrumbTitle(Section $section) {
+			$fields = $section->fetchVisibleColumns();
+			
+			if (empty($fields)) return null;
+			
+			foreach ($fields as $field) {
+				if ($field instanceof FieldBreadcrumb) continue;
+				
+				return $field;
+			}
 		}
 	}
 	

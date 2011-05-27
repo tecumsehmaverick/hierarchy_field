@@ -92,7 +92,7 @@
 			if ($entry_id == null) return;
 			
 			$element = new XMLElement($this->get('element_name'));
-			$entries = $this->driver->getBreadcrumbParents($this->get('id'), $data['relation_id']);
+			$entries = $this->driver->getBreadcrumbParents($data['relation_id'], $this);
 			$section = $this->driver->getBreadcrumbSection($this);
 			$title = $this->driver->getBreadcrumbTitle($section);
 			
@@ -123,31 +123,6 @@
 			}
 			
 			$wrapper->appendChild($element);
-		}
-		
-		public function xappendFormattedElement(&$wrapper, $data, $encode=false){
-			if(!is_array($data) || empty($data) || is_null($data['relation_id'])) return;
-
-			$list = new XMLElement($this->get('element_name'));
-
-			if(!is_array($data['relation_id'])) $data['relation_id'] = array($data['relation_id']);
-
-			foreach($data['relation_id'] as $relation_id){
-				$primary_field = $this->__findPrimaryFieldValueFromRelationID($relation_id);
-
-				$value = $primary_field['value'];
-
-				$item = new XMLElement('item');
-				$item->setAttribute('id', $relation_id);
-				$item->setAttribute('handle', Lang::createHandle($primary_field['value']));
-				$item->setAttribute('section-handle', $primary_field['section_handle']);
-				$item->setAttribute('section-name', General::sanitize($primary_field['section_name']));
-				$item->setValue(General::sanitize($value));
-
-				$list->appendChild($item);
-			}
-
-			$wrapper->appendChild($list);
 		}
 		
 		/**
@@ -254,11 +229,7 @@
 			$breadcrumb->setData('entry', $entry_id);
 			
 			if (isset($data['relation_id'])) {
-				$items = $this->driver->getBreadcrumbParents(
-					$this->get('id'),
-					$data['relation_id'],
-					true
-				);
+				$items = $this->driver->getBreadcrumbParents($data['relation_id'], $this, true);
 			}
 			
 			foreach ($items as $id => $title) {
@@ -322,7 +293,7 @@
 		public function prepareTableValue($data, XMLElement $link = null, $entry_id = null) {
 			if ($entry_id == null) return parent::prepareTableValue(null, $link);
 			
-			$items = $this->driver->getBreadcrumbParents($this->get('id'), $entry_id, true);
+			$items = $this->driver->getBreadcrumbParents($entry_id, $this, true);
 			$sm = new SectionManager(Symphony::Engine());
 			$section = $sm->fetch($this->get('parent_section'));
 			$links = array();

@@ -65,7 +65,13 @@
 			return true;
 		}
 		
-		public function getTitleField($section) {
+		public function getBreadcrumbSection($field) {
+			$sm = new SectionManager(Symphony::Engine());
+			
+			return $sm->fetch($field->get('parent_section'));
+		}
+		
+		public function getBreadcrumbTitle($section) {
 			$fields = $section->fetchVisibleColumns();
 			
 			if (empty($fields)) return null;
@@ -77,16 +83,29 @@
 			}
 		}
 		
-		public function getEntryTitle($entry, $field) {
+		public function getBreadcrumbEntryHandle($entry, $field) {
+			$data = $entry->getData($field->get('id'));
+			$span = new XMLElement('span');
+			
+			if (isset($data['handle'])) {
+				return $data['handle'];
+			}
+			
+			$field->prepareTableValue($data, $span, $entry->get('id'));
+			
+			return Lang::createHandle(strip_tags($span->generate()));
+		}
+		
+		public function getBreadcrumbEntryTitle($entry, $field) {
 			$data = $entry->getData($field->get('id'));
 			$span = new XMLElement('span');
 			
 			$field->prepareTableValue($data, $span, $entry->get('id'));
 			
-			return strip_tags($span->generate());
+			return General::sanitize(strip_tags($span->generate()));
 		}
 		
-		public function getParentEntries($field_id, $entry_id) {
+		public function getBreadcrumbParents($field_id, $entry_id, $as_titles = false) {
 			$db = Symphony::Database();
 			$em = new EntryManager(Symphony::Engine());
 			$sm = new SectionManager(Symphony::Engine());
@@ -96,7 +115,7 @@
 			
 			$entry = current($entries);
 			$section = $sm->fetch($entry->get('section_id'));
-			$title = $this->getTitleField($section);
+			$title = $this->getBreadcrumbTitle($section);
 			
 			// Do nothing if there are no visible fields:
 			if ($title === null) return array();
@@ -124,17 +143,26 @@
 			$entry_ids = array_reverse($entry_ids);
 			$entries = $em->fetch($entry_ids, $section->get('id'));
 			
+			// Sort entries by ID so that that appear in the same
+			// order as the $entry_ids variable:
+			usort($entries, function($a, $b) use ($entry_ids) {
+				return array_search($a->get('id'), $entry_ids)
+					> array_search($b->get('id'), $entry_ids);
+			});
+			
+			if (!$as_titles) return $entries;
+			
 			// Find parent entry titles:
-			$titles = array_flip($entry_ids);
+			$titles = array();
 			
 			foreach ($entries as $entry) {
-				$titles[$entry->get('id')] = $this->getEntryTitle($entry, $title);
+				$titles[$entry->get('id')] = $this->getBreadcrumbEntryTitle($entry, $title);
 			}
 			
 			return $titles;
 		}
 		
-		public function getChildEntries($field_id, $entry_id = null, $ignore_id = null) {
+		public function getBreadcrumbChildren($field_id, $entry_id = null, $ignore_id = null) {
 			$db = Symphony::Database();
 			$em = new EntryManager(Symphony::Engine());
 			$fm = new FieldManager(Symphony::Engine());
@@ -142,7 +170,7 @@
 			
 			$field = $fm->fetch($field_id);
 			$section = $sm->fetch($field->get('parent_section'));
-			$title = $this->getTitleField($section);
+			$title = $this->getBreadcrumbTitle($section);
 			$parent = $em->fetch($entry_id);
 			
 			// Do nothing if there are no visible fields:
@@ -198,7 +226,7 @@
 					continue;
 				}
 				
-				$titles[$entry->get('id')] = $this->getEntryTitle($entry, $title);
+				$titles[$entry->get('id')] = $this->getBreadcrumbEntryTitle($entry, $title);
 			}
 			
 			return $titles;
@@ -207,7 +235,7 @@
 		public function appendBreadcrumbOptions($context) {
 			if ($context['data']['type'] != 'breadcrumb') return;
 			
-			$context['options'] = $this->getChildEntries(
+			$context['options'] = $this->getBreadcrumbChildren(
 				$context['data']['field'],
 				$context['data']['location'],
 				$context['data']['entry']

@@ -68,7 +68,88 @@
 		public function isSortable() {
 			return false;
 		}
+		
+		/**
+		 * Append the formatted xml output of this field as utilized as a data source.
+		 *
+		 * @param XMLElement $wrapper
+		 *	the xml element to append the xml representation of this to.
+		 * @param array $data
+		 *	the current set of values for this field. the values are structured as
+		 *	for displayPublishPanel.
+		 * @param boolean $encode (optional)
+		 *	flag as to whether this should be html encoded prior to output. this
+		 *	defaults to false.
+		 * @param string $mode
+		 *	 A field can provide ways to output this field's data. For instance a mode
+		 *  could be 'items' or 'full' and then the function would display the data
+		 *  in a different way depending on what was selected in the datasource
+		 *  included elements.
+		 * @param integer $entry_id (optional)
+		 *	the identifier of this field entry instance. defaults to null.
+		 */
+		public function appendFormattedElement(XMLElement $wrapper, $data, $encode = false, $mode = null, $entry_id = null) {
+			if ($entry_id == null) return;
+			
+			$element = new XMLElement($this->get('element_name'));
+			$entries = $this->driver->getBreadcrumbParents($this->get('id'), $data['relation_id']);
+			$section = $this->driver->getBreadcrumbSection($this);
+			$title = $this->driver->getBreadcrumbTitle($section);
+			
+			if ($mode == 'path') {
+				$path = array();
+				
+				foreach ($entries as $entry) {
+					$path[] = $this->driver->getBreadcrumbEntryHandle($entry, $title);
+				}
+				
+				$element->setAttribute('mode', 'path');
+				$element->setValue(implode('/', $path));
+			}
+			
+			else {
+				foreach ($entries as $entry) {
+					$handle = $this->driver->getBreadcrumbEntryHandle($entry, $title);
+					$value = $this->driver->getBreadcrumbEntryTitle($entry, $title);
+					
+					$item = new XMLElement('item');
+					$item->setAttribute('id', $entry->get('id'));
+					$item->setAttribute('handle', $handle);
+					$item->setValue($value);
+					$element->appendChild($item);
+				}
+				
+				$element->setAttribute('mode', 'items');
+			}
+			
+			$wrapper->appendChild($element);
+		}
+		
+		public function xappendFormattedElement(&$wrapper, $data, $encode=false){
+			if(!is_array($data) || empty($data) || is_null($data['relation_id'])) return;
 
+			$list = new XMLElement($this->get('element_name'));
+
+			if(!is_array($data['relation_id'])) $data['relation_id'] = array($data['relation_id']);
+
+			foreach($data['relation_id'] as $relation_id){
+				$primary_field = $this->__findPrimaryFieldValueFromRelationID($relation_id);
+
+				$value = $primary_field['value'];
+
+				$item = new XMLElement('item');
+				$item->setAttribute('id', $relation_id);
+				$item->setAttribute('handle', Lang::createHandle($primary_field['value']));
+				$item->setAttribute('section-handle', $primary_field['section_handle']);
+				$item->setAttribute('section-name', General::sanitize($primary_field['section_name']));
+				$item->setValue(General::sanitize($value));
+
+				$list->appendChild($item);
+			}
+
+			$wrapper->appendChild($list);
+		}
+		
 		/**
 		 * Commit the settings of this field from the section editor to
 		 * create an instance of this field in a section.
@@ -173,9 +254,10 @@
 			$breadcrumb->setData('entry', $entry_id);
 			
 			if (isset($data['relation_id'])) {
-				$items = $this->driver->getParentEntries(
+				$items = $this->driver->getBreadcrumbParents(
 					$this->get('id'),
-					$data['relation_id']
+					$data['relation_id'],
+					true
 				);
 			}
 			
@@ -189,6 +271,26 @@
 
 			$wrapper->appendChild($label);
 			$wrapper->appendChild($breadcrumb);
+		}
+		
+		/**
+		 * Default accessor for the includable elements of this field. This array
+		 * will populate the Datasource included elements. Fields that have
+		 * different modes will override this and add new items to the array.
+		 * The Symphony convention is element_name : mode. Modes allow Fields to
+		 * output different XML in datasources.
+		 *
+		 * @return array
+		 *	the array of includable elements from this field.
+		 */
+		public function fetchIncludableElements() {
+			$name = $this->get('element_name');
+			$label = $this->get('label');
+			
+			return array(
+				"{$name}: path",
+				"{$name}: items"
+			);
 		}
 		
 		/**
@@ -220,7 +322,7 @@
 		public function prepareTableValue($data, XMLElement $link = null, $entry_id = null) {
 			if ($entry_id == null) return parent::prepareTableValue(null, $link);
 			
-			$items = $this->driver->getParentEntries($this->get('id'), $entry_id);
+			$items = $this->driver->getBreadcrumbParents($this->get('id'), $entry_id, true);
 			$sm = new SectionManager(Symphony::Engine());
 			$section = $sm->fetch($this->get('parent_section'));
 			$links = array();

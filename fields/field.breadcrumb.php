@@ -92,22 +92,28 @@
 			if ($entry_id == null) return;
 			
 			$element = new XMLElement($this->get('element_name'));
-			$entries = $this->driver->getBreadcrumbParents($data['relation_id'], $this);
 			$section = $this->driver->getBreadcrumbSection($this);
 			$title = $this->driver->getBreadcrumbTitle($section);
 			
-			if ($mode == 'path') {
-				$path = array();
-				
-				foreach ($entries as $entry) {
-					$path[] = $this->driver->getBreadcrumbEntryHandle($entry, $title);
+			if ($mode == 'children' || $mode == 'parents' || $mode == 'siblings') {
+				if ($mode == 'children') {
+					$entries = $this->driver->getBreadcrumbChildren(
+						$entry_id, $this
+					);
 				}
 				
-				$element->setAttribute('mode', 'path');
-				$element->setValue(implode('/', $path));
-			}
-			
-			else {
+				else if ($mode == 'parents') {
+					$entries = $this->driver->getBreadcrumbParents(
+						$data['relation_id'], $this
+					);
+				}
+				
+				else if ($mode == 'siblings') {
+					$entries = $this->driver->getBreadcrumbChildren(
+						$data['relation_id'], $this, $entry_id
+					);
+				}
+				
 				foreach ($entries as $entry) {
 					$handle = $this->driver->getBreadcrumbEntryHandle($entry, $title);
 					$value = $this->driver->getBreadcrumbEntryTitle($entry, $title);
@@ -119,7 +125,19 @@
 					$element->appendChild($item);
 				}
 				
-				$element->setAttribute('mode', 'items');
+				$element->setAttribute('mode', $mode);
+			}
+			
+			else {
+				$entries = $this->driver->getBreadcrumbParents($data['relation_id'], $this);
+				$path = array();
+				
+				foreach ($entries as $entry) {
+					$path[] = $this->driver->getBreadcrumbEntryHandle($entry, $title);
+				}
+				
+				$element->setAttribute('mode', 'path');
+				$element->setValue(implode('/', $path));
 			}
 			
 			$wrapper->appendChild($element);
@@ -262,7 +280,9 @@
 			
 			return array(
 				"{$name}: path",
-				"{$name}: items"
+				"{$name}: children",
+				"{$name}: parents",
+				"{$name}: siblings"
 			);
 		}
 		
@@ -344,8 +364,6 @@
 		 *	the processed field data.
 		 */
 		public function processRawFieldData($data, &$status, $simulate = false, $entry_id = null) {
-			if (empty($data)) return null;
-			
 			$result = array(
 				'relation_id'	=> $data
 			);

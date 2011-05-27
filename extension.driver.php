@@ -90,7 +90,7 @@
 		 * @param boolean $as_titles
 		 *	Return as a list of entry titles.
 		 */
-		public function getBreadcrumbChildren($entry_id, Field $field, $ignore_id = null, $as_titles = true) {
+		public function getBreadcrumbChildren($entry_id, Field $field, $ignore_id = null, $as_titles = false) {
 			$db = Symphony::Database();
 			$em = new EntryManager(Symphony::Engine());
 			$sm = new SectionManager(Symphony::Engine());

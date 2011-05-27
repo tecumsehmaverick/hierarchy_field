@@ -37,9 +37,7 @@ After clicking the add item button you will see this:
     └───┴───┘
          ┌^────────────────┐
          │ An entry        │
-         ├─────────────────┤
          │ Another entry   │
-         ├─────────────────┤
          │ ...             │
          └─────────────────┘
 

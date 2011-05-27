@@ -9,7 +9,7 @@
 	require_once EXTENSIONS . '/breadcrumb_ui/lib/class.breadcrumb_ui.php';
 
 	class FieldBreadcrumb extends Field {
-		protected $driver = null;
+		public $driver = null;
 
 	/*-------------------------------------------------------------------------
 		Definition:
@@ -95,8 +95,38 @@
 			$section = $this->driver->getBreadcrumbSection($this);
 			$title = $this->driver->getBreadcrumbTitle($section);
 			
-			if ($mode == 'children' || $mode == 'parents' || $mode == 'siblings') {
-				if ($mode == 'children') {
+			ini_set('html_errors', true);
+			
+			if (
+				$mode == 'children'
+				|| $mode == 'parents'
+				|| $mode == 'siblings'
+				|| $mode == 'tree'
+			) {
+				$field = $this;
+				$builder = function($element, $entries) use ($title, $mode, $field, &$builder) {
+					foreach ($entries as $entry) {
+						$handle = $field->driver->getBreadcrumbEntryHandle($entry, $title);
+						$value = $field->driver->getBreadcrumbEntryTitle($entry, $title);
+						
+						$item = new XMLElement('item');
+						$item->setAttribute('id', $entry->get('id'));
+						$item->setAttribute('handle', $handle);
+						$item->setAttribute('value', $value);
+						
+						if ($mode == 'tree') {
+							$entries = $field->driver->getBreadcrumbChildren(
+								$entry->get('id'), $field
+							);
+							
+							$builder($item, $entries);
+						}
+						
+						$element->appendChild($item);
+					}
+				};
+				
+				if ($mode == 'children' || $mode == 'tree') {
 					$entries = $this->driver->getBreadcrumbChildren(
 						$entry_id, $this
 					);
@@ -114,16 +144,7 @@
 					);
 				}
 				
-				foreach ($entries as $entry) {
-					$handle = $this->driver->getBreadcrumbEntryHandle($entry, $title);
-					$value = $this->driver->getBreadcrumbEntryTitle($entry, $title);
-					
-					$item = new XMLElement('item');
-					$item->setAttribute('id', $entry->get('id'));
-					$item->setAttribute('handle', $handle);
-					$item->setValue($value);
-					$element->appendChild($item);
-				}
+				$builder($element, $entries);
 				
 				$element->setAttribute('mode', $mode);
 			}
@@ -282,7 +303,8 @@
 				"{$name}: path",
 				"{$name}: children",
 				"{$name}: parents",
-				"{$name}: siblings"
+				"{$name}: siblings",
+				"{$name}: tree"
 			);
 		}
 		

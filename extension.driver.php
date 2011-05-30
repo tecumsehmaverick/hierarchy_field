@@ -12,10 +12,7 @@
 	 * A new link field, used to build hierarchical content.
 	 */
 	class Extension_Breadcrumb_Field extends Extension {
-		static protected $cacheEntryTitle = array();
-		static protected $cacheEntryHandle = array();
-		static protected $cacheChildren = array();
-		static protected $cacheParents = array();
+		static protected $entryCache = array();
 		
 		/**
 		 * Extension information.
@@ -88,172 +85,116 @@
 		
 		/**
 		 * Get a list of child entries.
-		 * @param integer $entry_id
 		 * @param Field $field
-		 * @param integer $ignore_id
-		 *	Don't output entries with this ID.
-		 * @param boolean $as_titles
-		 *	Return as a list of entry titles.
+		 * @param integer $left
+		 *	The lefthand of the range in which to select children from.
+		 * @param integer $right
+		 *	The righthand of the range in which to select children from.
+		 * @param boolean $recursive
+		 *	Build a complete tree of children.
 		 */
-		public function getBreadcrumbChildren($entry_id, Field $field, $ignore_id = null, $as_titles = false) {
-			$cid = $entry_id . '-' . $field->get('id');
+		public function getBreadcrumbChildren(Field $field, $left, $right, $recursive = false) {
 			$db = Symphony::Database();
-			$em = new EntryManager(Symphony::Engine());
-			$sm = new SectionManager(Symphony::Engine());
+			$query = '
+				SELECT
+					child.entry_id
+				FROM
+					`tbl_entries_data_%1$d` AS `child`,
+					`tbl_entries_data_%1$d` AS `parent`
+				WHERE
+					child.left BETWEEN %2$d and %3$d
+					AND parent.left = %2$d
+					AND parent.right = %3$d
+					AND child.depth - parent.depth%4$s
+			';
+			$vars = array(
+				$field->get('id'),
+				$left, $right
+			);
 			
-			$section = $sm->fetch($field->get('parent_section'));
-			$title = $this->getBreadcrumbTitle($section);
-			$parent = $em->fetch($entry_id);
+			// Add extra SQL for recursive queries:
+			$vars[] = (
+				$recursive === true
+				? null : ' = 1'
+			);
 			
-			// Do nothing if there are no visible fields:
-			if ($title === null) return array();
+			$entry_ids = $db->fetchCol('entry_id', vsprintf($query, $vars));
 			
-			if (!isset(self::$cacheChildren[$cid])) {
-				if ($parent === false) {
-					/**
-					 * @todo This query is probably very slow.
-					 */
-					$entry_ids = $db->fetchCol('id', sprintf('
-						SELECT DISTINCT
-							e.id
-						FROM
-							`tbl_entries` AS e
-						WHERE
-							e.section_id = %d
-							AND e.id NOT IN (
-								SELECT
-									d.entry_id
-								FROM
-									`tbl_entries_data_%d` AS d
-							)
-						',
-						$section->get('id'),
-						$field->get('id')
-					));
-				}
-				
-				else {
-					$parent = current($parent);
-					$entry_ids = $db->fetchCol('entry_id', sprintf('
-						SELECT
-							d.entry_id
-						FROM
-							`tbl_entries_data_%d` AS d
-						WHERE
-							d.relation_id = %d
-						',
-						$field->get('id'), $entry_id
-					));
-				}
-				
-				if (!empty($entry_ids)) {
-					$entries = $em->fetch($entry_ids, $section->get('id'));
-					
-					// Sort entries by ID so that that appear in the same
-					// order as the $entry_ids variable:
-					usort($entries, function($a, $b) use ($entry_ids) {
-						return array_search($a->get('id'), $entry_ids)
-							> array_search($b->get('id'), $entry_ids);
-					});
-					
-					self::$cacheChildren[$cid] = $entries;
-				}
-				
-				else {
-					self::$cacheChildren[$cid] = array();
-				}
-			}
-			
-			$entries = self::$cacheChildren[$cid];
-			
-			if (empty($entries)) return array();
-			
-			// Remove ignored entry:
-			$entries = array_filter($entries, function($entry) use ($ignore_id) {
-				return $entry->get('id') != $ignore_id;
-			});
-			
-			if (!$as_titles) return $entries;
-			
-			// Find parent entry titles:
-			$titles = array();
-			
-			foreach ($entries as $entry) {
-				$titles[$entry->get('id')] = $this->getBreadcrumbEntryTitle($entry, $title);
-			}
-			
-			return $titles;
+			return $this->getBreadcrumbEntries($field, $entry_ids);
 		}
 		
 		/**
 		 * Get a list of all parent entries of a particular entry.
-		 * @param integer $entry_id
 		 * @param Field $field
-		 * @param boolean $as_titles
-		 *	Return as a list of entry titles.
+		 * @param integer $left
+		 *	Lefthand value of the child.
+		 * @param integer $right
+		 *	Righthand value of the child.
 		 */
-		public function getBreadcrumbParents($entry_id, Field $field, $as_titles = false) {
-			$cid = $entry_id . '-' . $field->get('id');
+		public function getBreadcrumbParents(Field $field, $left, $right) {
 			$db = Symphony::Database();
-			$em = new EntryManager(Symphony::Engine());
-			$sm = new SectionManager(Symphony::Engine());
-			$entries = $em->fetch($entry_id);
+			$entry_ids = $db->fetchCol('entry_id', sprintf('
+				SELECT
+					parent.entry_id
+				FROM
+					`tbl_entries_data_%1$d` AS `child`,
+					`tbl_entries_data_%1$d` AS `parent`
+				WHERE
+					child.left BETWEEN parent.left and parent.right
+					AND child.left = %2$d
+					AND child.right = %3$d
+					AND parent.left != %2$d
+					AND parent.right != %3$d
+				ORDER BY
+					parent.left
+				',
+				$field->get('id'),
+				$left, $right
+			));
 			
-			if (empty($entries)) return array();
+			return $this->getBreadcrumbEntries($field, $entry_ids);
+		}
+		
+		/**
+		 * Return an array of entries from an array of entry IDs
+		 * maintaining the original sorting.
+		 * @param Field $field
+		 * @param array $entry_ids
+		 */
+		public function getBreadcrumbEntries(Field $field, array $entry_ids) {
+			if (empty($entry_ids)) return array();
 			
-			$entry = current($entries);
-			$section = $sm->fetch($entry->get('section_id'));
-			$title = $this->getBreadcrumbTitle($section);
+			$entries = array();
 			
-			// Do nothing if there are no visible fields:
-			if ($title === null) return array();
-			
-			// Find parent entries:
-			if (!isset(self::$cacheParents[$cid])) {
-				$entry_ids = array($entry_id);
+			foreach ($entry_ids as $index => $entry_id) {
+				if (!isset(self::$entryCache[$entry_id])) continue;
 				
-				while (true) {
-					$current = $db->fetchVar('relation_id', 0, sprintf('
-						SELECT
-							d.relation_id
-						FROM
-							`tbl_entries_data_%d` AS d
-						WHERE
-							d.entry_id = %d
-						',
-						$field->get('id'), $entry_id
-					));
-					
-					if (empty($current)) break;
-					
-					$entry_ids[] = $entry_id = $current;
+				$entries[] = self::$entryCache[$entry_id];
+				
+				unset($entry_ids[$index]);
+			}
+			
+			if (!empty($entry_ids)) {
+				$em = new EntryManager(Symphony::Engine());
+				$sm = new SectionManager(Symphony::Engine());
+				$section = $sm->fetch($field->get('parent_section'));
+				$extras = $em->fetch($entry_ids, $section->get('id'));
+				
+				foreach ($extras as $entry) {
+					self::$entryCache[$entry->get('id')] = $entry;
 				}
 				
-				$entry_ids = array_reverse($entry_ids);
-				$entries = $em->fetch($entry_ids, $section->get('id'));
-				
-				// Sort entries by ID so that that appear in the same
-				// order as the $entry_ids variable:
-				usort($entries, function($a, $b) use ($entry_ids) {
-					return array_search($a->get('id'), $entry_ids)
-						> array_search($b->get('id'), $entry_ids);
-				});
-				
-				self::$cacheParents[$cid] = $entries;
+				$entries = array_merge($entries, $extras);
 			}
 			
-			$entries = self::$cacheParents[$cid];
+			// Sort entries by ID so that that appear in the same
+			// order as the $entry_ids variable:
+			usort($entries, function($a, $b) use ($entry_ids) {
+				return array_search($a->get('id'), $entry_ids)
+					> array_search($b->get('id'), $entry_ids);
+			});
 			
-			if (!$as_titles) return $entries;
-			
-			// Find parent entry titles:
-			$titles = array();
-			
-			foreach ($entries as $entry) {
-				$titles[$entry->get('id')] = $this->getBreadcrumbEntryTitle($entry, $title);
-			}
-			
-			return $titles;
+			return $entries;
 		}
 		
 		/**
@@ -263,26 +204,16 @@
 		 * @param Field $field
 		 */
 		public function getBreadcrumbEntryHandle(Entry $entry, Field $field) {
-			$cid = $entry->get('id') . '-' . $field->get('id');
+			$data = $entry->getData($field->get('id'));
+			$span = new XMLElement('span');
 			
-			if (!isset(self::$cacheEntryHandle[$cid])) {
-				$data = $entry->getData($field->get('id'));
-				$span = new XMLElement('span');
-				
-				if (isset($data['handle'])) {
-					$handle = $data['handle'];
-				}
-				
-				else {
-					$field->prepareTableValue($data, $span, $entry->get('id'));
-					
-					$handle = Lang::createHandle(strip_tags($span->generate()));
-				}
-				
-				self::$cacheEntryHandle[$cid] = $handle;
+			if (isset($data['handle'])) {
+				return $data['handle'];
 			}
 			
-			return self::$cacheEntryHandle[$cid];
+			$field->prepareTableValue($data, $span, $entry->get('id'));
+			
+			return Lang::createHandle(strip_tags($span->generate()));
 		}
 		
 		/**
@@ -291,18 +222,12 @@
 		 * @param Field $field
 		 */
 		public function getBreadcrumbEntryTitle($entry, $field) {
-			$cid = $entry->get('id') . '-' . $field->get('id');
+			$data = $entry->getData($field->get('id'));
+			$span = new XMLElement('span');
 			
-			if (!isset(self::$cacheEntryTitle[$cid])) {
-				$data = $entry->getData($field->get('id'));
-				$span = new XMLElement('span');
-				
-				$field->prepareTableValue($data, $span, $entry->get('id'));
-				
-				self::$cacheEntryTitle[$cid] = General::sanitize(strip_tags($span->generate()));
-			}
+			$field->prepareTableValue($data, $span, $entry->get('id'));
 			
-			return self::$cacheEntryTitle[$cid];
+			return General::sanitize(strip_tags($span->generate()));
 		}
 		
 		/**

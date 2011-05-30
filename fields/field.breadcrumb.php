@@ -39,12 +39,11 @@
 					`id` int(11) unsigned NOT NULL auto_increment,
 					`entry_id` int(11) unsigned NOT NULL,
 					`relation_id` int(11) unsigned DEFAULT NULL,
-					`value` text DEFAULT NULL,
-					`depth` int(11) unsigned NOT NULL,
+					`text_path` text DEFAULT NULL,
+					`id_path` text DEFAULT NULL,
 					PRIMARY KEY	(`id`),
 					KEY `entry_id` (`entry_id`),
-					KEY `relation_id` (`relation_id`),
-					KEY `depth` (`depth`)
+					KEY `relation_id` (`relation_id`)
 				) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 			");
 		}
@@ -89,18 +88,18 @@
 		 *	the identifier of this field entry instance. defaults to null.
 		 */
 		public function appendFormattedElement(XMLElement $wrapper, $data, $encode = false, $mode = null, $entry_id = null) {
-			if ($entry_id == null) return;
+			if (!is_array($data) || $data['left'] === null || $data['right'] === null) return;
+			
+			ini_set('html_errors', true);
 			
 			$element = new XMLElement($this->get('element_name'));
 			$section = $this->driver->getBreadcrumbSection($this);
 			$title = $this->driver->getBreadcrumbTitle($section);
-			
-			ini_set('html_errors', true);
+			$left = $data['left']; $right = $data['right'];
 			
 			if (
 				$mode == 'children'
 				|| $mode == 'parents'
-				|| $mode == 'siblings'
 				|| $mode == 'tree'
 			) {
 				$field = $this;
@@ -108,49 +107,45 @@
 					foreach ($entries as $entry) {
 						$handle = $field->driver->getBreadcrumbEntryHandle($entry, $title);
 						$value = $field->driver->getBreadcrumbEntryTitle($entry, $title);
-						
+
 						$item = new XMLElement('item');
 						$item->setAttribute('id', $entry->get('id'));
 						$item->setAttribute('handle', $handle);
 						$item->setAttribute('value', $value);
-						
+
+						/*
 						if ($mode == 'tree') {
 							$entries = $field->driver->getBreadcrumbChildren(
 								$entry->get('id'), $field
 							);
-							
+
 							$builder($item, $entries);
 						}
+						*/
 						
 						$element->appendChild($item);
 					}
 				};
-				
+
 				if ($mode == 'children' || $mode == 'tree') {
-					$entries = $this->driver->getBreadcrumbChildren(
-						$entry_id, $this
-					);
+					$entries = $this->driver->getBreadcrumbChildren($this, $left, $right);
 				}
-				
+
 				else if ($mode == 'parents') {
-					$entries = $this->driver->getBreadcrumbParents(
-						$data['relation_id'], $this
-					);
+					$entries = $this->driver->getBreadcrumbParents($this, $left, $right);
 				}
-				
+
 				else if ($mode == 'siblings') {
-					$entries = $this->driver->getBreadcrumbChildren(
-						$data['relation_id'], $this, $entry_id
-					);
+					//$entries = $this->driver->getBreadcrumbChildren($this, $left, $right);
 				}
-				
+
 				$builder($element, $entries);
-				
+
 				$element->setAttribute('mode', $mode);
 			}
 			
-			else {
-				$entries = $this->driver->getBreadcrumbParents($data['relation_id'], $this);
+			else if ($mode == 'path') {
+				//$entries = $this->driver->getBreadcrumbParents($data['relation_id'], $this);
 				$path = array();
 				
 				foreach ($entries as $entry) {
@@ -160,6 +155,8 @@
 				$element->setAttribute('mode', 'path');
 				$element->setValue(implode('/', $path));
 			}
+			
+			//var_dump($data); exit;
 			
 			$wrapper->appendChild($element);
 		}

@@ -250,15 +250,13 @@
 		 *	the entry id of this field. this defaults to null.
 		 */
 		public function displayPublishPanel($wrapper, $data = null, $error = null, $prefix = null, $suffix = null, $entry_id = null) {
-			$items = array();
+			$section = $this->driver->getBreadcrumbSection($this);
+			$title = $this->driver->getBreadcrumbTitle($section);
+			$entries = array();
 			$name = sprintf(
 				'fields%s[%s]%s',
-				$prefix,
-				$this->get('element_name'),
-				$suffix
+				$prefix, $this->get('element_name'), $suffix
 			);
-			
-			$this->driver->getBreadcrumbChildren(11, $this, 24);
 			
 			$label = Widget::Label($this->get('label'));
 			$breadcrumb = new BreadcrumbUI($name);
@@ -267,11 +265,18 @@
 			$breadcrumb->setData('entry', $entry_id);
 			
 			if (isset($data['relation_id'])) {
-				$items = $this->driver->getBreadcrumbParents($data['relation_id'], $this, true);
+				$breadcrumb->setData('relation', $data['relation_id']);
 			}
 			
-			foreach ($items as $id => $title) {
-				$breadcrumb->appendItem($id, $title);
+			if (is_array($data) && $data['left'] !== null && $data['right'] !== null) {
+				$entries = $this->driver->getBreadcrumbParents($this, $data['left'], $data['right']);
+			}
+			
+			foreach ($entries as $entry) {
+				$handle = $this->driver->getBreadcrumbEntryHandle($entry, $title);
+				$value = $this->driver->getBreadcrumbEntryTitle($entry, $title);
+				
+				$breadcrumb->appendItem($entry->get('id'), $value);
 			}
 			
 			if ($error != null) {
@@ -334,20 +339,26 @@
 		public function prepareTableValue($data, XMLElement $link = null, $entry_id = null) {
 			if ($entry_id == null) return parent::prepareTableValue(null, $link);
 			
-			$items = $this->driver->getBreadcrumbParents($entry_id, $this, true);
-			$sm = new SectionManager(Symphony::Engine());
-			$section = $sm->fetch($this->get('parent_section'));
-			$links = array();
+			$section = $this->driver->getBreadcrumbSection($this);
+			$title = $this->driver->getBreadcrumbTitle($section);
+			$links = $entries = array();
 			
-			foreach ($items as $entry_id => $item) {
+			if (is_array($data) && $data['left'] !== null && $data['right'] !== null) {
+				$entries = $this->driver->getBreadcrumbParents($this, $data['left'], $data['right']);
+			}
+			
+			foreach ($entries as $entry) {
+				$handle = $this->driver->getBreadcrumbEntryHandle($entry, $title);
+				$value = $this->driver->getBreadcrumbEntryTitle($entry, $title);
+				
 				$element = new XMLElement('a');
 				$element->setAttribute('href', sprintf(
 					'%s/publish/%s/edit/%d',
 					SYMPHONY_URL,
 					$section->get('handle'),
-					$entry_id
+					$entry->get('id')
 				));
-				$element->setValue($item);
+				$element->setValue($value);
 				
 				$links[] = $element->generate();
 			}

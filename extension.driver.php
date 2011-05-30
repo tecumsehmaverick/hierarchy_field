@@ -73,10 +73,26 @@
 		public function appendBreadcrumbOptions($context) {
 			if ($context['data']['type'] != 'breadcrumb') return;
 			
+			$db = Symphony::Database();
 			$fm = new FieldManager(Symphony::Engine());
-			$entry_id = $context['data']['item'];
 			$field = $fm->fetch($context['data']['field']);
+			$section = $this->getBreadcrumbSection($field);
+			$title = $this->getBreadcrumbTitle($section);
+			$entry_id = $context['data']['item'];
 			$ignore_id = $context['data']['entry'];
+			$options = array();
+			
+			$entries = $this->getBreadcrumbChildren($field);
+			
+			foreach ($entries as $entry) {
+				$value = $this->getBreadcrumbEntryTitle($entry, $title);
+				
+				$options[$entry->get('id')] = $value;
+			}
+			
+			$context['options'] = $options;
+			
+			return;
 			
 			$context['options'] = $this->getBreadcrumbChildren(
 				$entry_id, $field, $ignore_id, true
@@ -93,7 +109,7 @@
 		 * @param boolean $recursive
 		 *	Build a complete tree of children.
 		 */
-		public function getBreadcrumbChildren(Field $field, $left, $right, $recursive = false) {
+		public function getBreadcrumbChildren(Field $field, $left = null, $right = null, $recursive = false) {
 			$db = Symphony::Database();
 			$query = '
 				SELECT

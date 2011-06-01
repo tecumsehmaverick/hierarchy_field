@@ -2,7 +2,7 @@
 
 A new field that lets you link your entries to each other with an intelligent breadcrumb interface.
 
-__Version:__ 0.1  
+__Version:__ 0.2  
 __Date:__ 1 June 2011  
 __Requirements:__ Symphony 2.2  
 __Author:__ Rowan Lewis <me@rowanlewis.com>  
@@ -30,11 +30,11 @@ The first button is the clear button, if there where any items in the breadcrumb
 
 After clicking the add item button you will see this:
 
-![An empty breadcrumb][usage-step-two]
+![Choosing a parent item][usage-step-two]
 
 Clicking on one of the drop down options will add it to the end your breadcrumb:
 
-![An empty breadcrumb][usage-step-three]
+![A breadcrumb containing one item][usage-step-three]
 
 If you click on the add item button again, it will give you a list of entries aleady linked to the last item in the breadcrumb.
 

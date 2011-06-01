@@ -39,11 +39,12 @@
 					`id` int(11) unsigned NOT NULL auto_increment,
 					`entry_id` int(11) unsigned NOT NULL,
 					`relation_id` int(11) unsigned DEFAULT NULL,
-					`text_path` text DEFAULT NULL,
-					`id_path` text DEFAULT NULL,
+					`value` text DEFAULT NULL,
+					`depth` int(11) unsigned NOT NULL,
 					PRIMARY KEY	(`id`),
 					KEY `entry_id` (`entry_id`),
-					KEY `relation_id` (`relation_id`)
+					KEY `relation_id` (`relation_id`),
+					KEY `depth` (`depth`)
 				) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 			");
 		}
@@ -88,75 +89,72 @@
 		 *	the identifier of this field entry instance. defaults to null.
 		 */
 		public function appendFormattedElement(XMLElement $wrapper, $data, $encode = false, $mode = null, $entry_id = null) {
-			if (!is_array($data) || $data['left'] === null || $data['right'] === null) return;
-			
-			ini_set('html_errors', true);
+			if ($entry_id == null) return;
 			
 			$element = new XMLElement($this->get('element_name'));
-			$section = $this->driver->getBreadcrumbSection($this);
-			$title = $this->driver->getBreadcrumbTitle($section);
-			$left = $data['left']; $right = $data['right'];
+			$section = $this->driver->getSectionByField($this);
+			$title = $this->driver->getFieldBySectionId($section->get('id'));
 			
 			if (
 				$mode == 'children'
 				|| $mode == 'parents'
+				|| $mode == 'siblings'
 				|| $mode == 'tree'
 			) {
 				$field = $this;
-				$builder = function($element, $entries) use ($title, $mode, $field, &$builder) {
-					foreach ($entries as $entry) {
-						$handle = $field->driver->getBreadcrumbEntryHandle($entry, $title);
-						$value = $field->driver->getBreadcrumbEntryTitle($entry, $title);
-
-						$item = new XMLElement('item');
-						$item->setAttribute('id', $entry->get('id'));
-						$item->setAttribute('handle', $handle);
-						$item->setAttribute('value', $value);
-
-						/*
-						if ($mode == 'tree') {
-							$entries = $field->driver->getBreadcrumbChildren(
-								$entry->get('id'), $field
-							);
-
-							$builder($item, $entries);
-						}
-						*/
+				$builder = function($element, $items) use ($title, $mode, $field, &$builder) {
+					foreach ($items as $item) {
+						$child = new XMLElement('item');
+						$child->setAttribute('id', $item->entry);
+						$child->setAttribute('handle', $item->handle);
+						$child->setAttribute('value', $item->value);
 						
-						$element->appendChild($item);
+						if ($mode == 'tree') {
+							$items = $field->driver->getBreadcrumbChildren(
+								$field, $item->entry
+							);
+							
+							$builder($child, $items);
+						}
+						
+						$element->appendChild($child);
 					}
 				};
-
+				
 				if ($mode == 'children' || $mode == 'tree') {
-					$entries = $this->driver->getBreadcrumbChildren($this, $left, $right);
+					$items = $this->driver->getBreadcrumbChildren(
+						$this, $entry_id
+					);
 				}
-
+				
 				else if ($mode == 'parents') {
-					$entries = $this->driver->getBreadcrumbParents($this, $left, $right);
+					$items = $this->driver->getBreadcrumbParents(
+						$this, $data['relation_id']
+					);
 				}
-
+				
 				else if ($mode == 'siblings') {
-					//$entries = $this->driver->getBreadcrumbChildren($this, $left, $right);
+					$items = $this->driver->getBreadcrumbChildren(
+						$this, $data['relation_id'], $entry_id
+					);
 				}
-
-				$builder($element, $entries);
-
+				
+				$builder($element, $items);
+				
 				$element->setAttribute('mode', $mode);
 			}
 			
-			else if ($mode == 'path') {
-				//$entries = $this->driver->getBreadcrumbParents($data['relation_id'], $this);
+			else {
+				$items = $this->driver->getBreadcrumbParents($this, $data['relation_id']);
 				$path = array();
 				
-				foreach ($entries as $entry) {
-					$path[] = $this->driver->getBreadcrumbEntryHandle($entry, $title);
+				foreach ($items as $item) {
+					$path[] = $item->handle;
 				}
 				
 				$element->setAttribute('mode', 'path');
 				$element->setValue(implode('/', $path));
 			}
-			
-			//var_dump($data); exit;
 			
 			$wrapper->appendChild($element);
 		}
@@ -203,8 +201,6 @@
 		 *	the input error collection. this defaults to null.
 		 */
 		public function displaySettingsPanel($wrapper, $errors = null) {
-			//$this->driver->addSettingsHeaders($this->_engine->Page);
-
 			parent::displaySettingsPanel($wrapper, $errors);
 
 			$order = $this->get('sortorder');
@@ -250,13 +246,15 @@
 		 *	the entry id of this field. this defaults to null.
 		 */
 		public function displayPublishPanel($wrapper, $data = null, $error = null, $prefix = null, $suffix = null, $entry_id = null) {
-			$section = $this->driver->getBreadcrumbSection($this);
-			$title = $this->driver->getBreadcrumbTitle($section);
-			$entries = array();
+			$items = array();
 			$name = sprintf(
 				'fields%s[%s]%s',
-				$prefix, $this->get('element_name'), $suffix
+				$prefix,
+				$this->get('element_name'),
+				$suffix
 			);
+			
+			$this->driver->getBreadcrumbChildren($this, 11, 24);
 			
 			$label = Widget::Label($this->get('label'));
 			$breadcrumb = new BreadcrumbUI($name);
@@ -265,18 +263,11 @@
 			$breadcrumb->setData('entry', $entry_id);
 			
 			if (isset($data['relation_id'])) {
-				$breadcrumb->setData('relation', $data['relation_id']);
+				$items = $this->driver->getBreadcrumbParents($this, $data['relation_id']);
 			}
 			
-			if (is_array($data) && $data['left'] !== null && $data['right'] !== null) {
-				$entries = $this->driver->getBreadcrumbParents($this, $data['left'], $data['right']);
-			}
-			
-			foreach ($entries as $entry) {
-				$handle = $this->driver->getBreadcrumbEntryHandle($entry, $title);
-				$value = $this->driver->getBreadcrumbEntryTitle($entry, $title);
-				
-				$breadcrumb->appendItem($entry->get('id'), $value);
+			foreach ($items as $item) {
+				$breadcrumb->appendItem($item->entry, $item->value);
 			}
 			
 			if ($error != null) {
@@ -339,26 +330,20 @@
 		public function prepareTableValue($data, XMLElement $link = null, $entry_id = null) {
 			if ($entry_id == null) return parent::prepareTableValue(null, $link);
 			
-			$section = $this->driver->getBreadcrumbSection($this);
-			$title = $this->driver->getBreadcrumbTitle($section);
-			$links = $entries = array();
+			$items = $this->driver->getBreadcrumbParents($this, $entry_id, true);
+			$sm = new SectionManager(Symphony::Engine());
+			$section = $sm->fetch($this->get('parent_section'));
+			$links = array();
 			
-			if (is_array($data) && $data['left'] !== null && $data['right'] !== null) {
-				$entries = $this->driver->getBreadcrumbParents($this, $data['left'], $data['right']);
-			}
-			
-			foreach ($entries as $entry) {
-				$handle = $this->driver->getBreadcrumbEntryHandle($entry, $title);
-				$value = $this->driver->getBreadcrumbEntryTitle($entry, $title);
-				
+			foreach ($items as $item) {
 				$element = new XMLElement('a');
 				$element->setAttribute('href', sprintf(
 					'%s/publish/%s/edit/%d',
 					SYMPHONY_URL,
 					$section->get('handle'),
-					$entry->get('id')
+					$item->entry
 				));
-				$element->setValue($value);
+				$element->setValue($item->value);
 				
 				$links[] = $element->generate();
 			}

@@ -73,177 +73,209 @@
 		public function appendBreadcrumbOptions($context) {
 			if ($context['data']['type'] != 'breadcrumb') return;
 			
-			$db = Symphony::Database();
 			$fm = new FieldManager(Symphony::Engine());
-			$field = $fm->fetch($context['data']['field']);
-			$section = $this->getBreadcrumbSection($field);
-			$title = $this->getBreadcrumbTitle($section);
 			$entry_id = $context['data']['item'];
+			$field = $fm->fetch($context['data']['field']);
 			$ignore_id = $context['data']['entry'];
-			$options = array();
 			
-			$entries = $this->getBreadcrumbChildren($field);
-			
-			foreach ($entries as $entry) {
-				$value = $this->getBreadcrumbEntryTitle($entry, $title);
-				
-				$options[$entry->get('id')] = $value;
-			}
-			
-			$context['options'] = $options;
-			
-			return;
-			
-			$context['options'] = $this->getBreadcrumbChildren(
-				$entry_id, $field, $ignore_id, true
+			$items = $this->getBreadcrumbChildren(
+				$field, $entry_id, $ignore_id
 			);
+			
+			foreach ($items as $item) {
+				$context['options'][$item->entry] = $item->value;
+			}
 		}
 		
 		/**
 		 * Get a list of child entries.
-		 * @param Field $field
-		 * @param integer $left
-		 *	The lefthand of the range in which to select children from.
-		 * @param integer $right
-		 *	The righthand of the range in which to select children from.
-		 * @param boolean $recursive
-		 *	Build a complete tree of children.
+		 * @param Field $breadcrumb
+		 * @param integer $entry_id
+		 * @param integer $ignore_id
+		 *	Don't output entries with this ID.
 		 */
-		public function getBreadcrumbChildren(Field $field, $left = null, $right = null, $recursive = false) {
-			$db = Symphony::Database();
-			$query = '
-				SELECT
-					child.entry_id
-				FROM
-					`tbl_entries_data_%1$d` AS `child`,
-					`tbl_entries_data_%1$d` AS `parent`
-				WHERE
-					child.left BETWEEN %2$d and %3$d
-					AND parent.left = %2$d
-					AND parent.right = %3$d
-					AND child.depth - parent.depth%4$s
-			';
-			$vars = array(
-				$field->get('id'),
-				$left, $right
+		public function getBreadcrumbChildren(Field $breadcrumb, $entry_id, $ignore_id = null) {
+			$em = new EntryManager(Symphony::Engine());
+			$parent = $em->fetch($entry_id);
+			
+			// Loat root level entries:
+			if ($parent === false) {
+				$entry_ids = Symphony::Database()->fetchCol('id', sprintf('
+					SELECT DISTINCT
+						e.id
+					FROM
+						`tbl_entries` AS e
+					WHERE
+						e.section_id = %d
+						AND e.id NOT IN (
+							SELECT
+								d.entry_id
+							FROM
+								`tbl_entries_data_%d` AS d
+							WHERE
+								d.relation_id IS NOT NULL
+						)
+					',
+					$breadcrumb->get('parent_section'),
+					$breadcrumb->get('id')
+				));
+			}
+			
+			// Load child entries:
+			else {
+				$parent = current($parent);
+				$entry_ids = Symphony::Database()->fetchCol('entry_id', sprintf('
+					SELECT DISTINCT
+						d.entry_id
+					FROM
+						`tbl_entries_data_%d` AS d
+					WHERE
+						d.relation_id = %d
+					',
+					$breadcrumb->get('id'),
+					$entry_id
+				));
+			}
+			
+			if (empty($entry_ids)) return array();
+			
+			$items = $this->getBreadcrumbItems(
+				$breadcrumb->get('parent_section'), $entry_ids
 			);
 			
-			// Add extra SQL for recursive queries:
-			$vars[] = (
-				$recursive === true
-				? null : ' = 1'
-			);
+			// Remove ignored entry:
+			$items = array_filter($items, function($item) use ($ignore_id) {
+				return $item->entry != $ignore_id;
+			});
 			
-			$entry_ids = $db->fetchCol('entry_id', vsprintf($query, $vars));
-			
-			return $this->getBreadcrumbEntries($field, $entry_ids);
+			return $items;
 		}
 		
 		/**
 		 * Get a list of all parent entries of a particular entry.
-		 * @param Field $field
-		 * @param integer $left
-		 *	Lefthand value of the child.
-		 * @param integer $right
-		 *	Righthand value of the child.
+		 * @param Field $breadcrumb
+		 * @param integer $entry_id
 		 */
-		public function getBreadcrumbParents(Field $field, $left, $right) {
-			$db = Symphony::Database();
-			$entry_ids = $db->fetchCol('entry_id', sprintf('
-				SELECT
-					parent.entry_id
-				FROM
-					`tbl_entries_data_%1$d` AS `child`,
-					`tbl_entries_data_%1$d` AS `parent`
-				WHERE
-					child.left BETWEEN parent.left and parent.right
-					AND child.left = %2$d
-					AND child.right = %3$d
-					AND parent.left != %2$d
-					AND parent.right != %3$d
-				ORDER BY
-					parent.left
-				',
-				$field->get('id'),
-				$left, $right
-			));
+		public function getBreadcrumbParents(Field $breadcrumb, $entry_id) {
+			$em = new EntryManager(Symphony::Engine());
+			$entries = $em->fetch($entry_id);
 			
-			return $this->getBreadcrumbEntries($field, $entry_ids);
+			if (empty($entries)) return array();
+			
+			$entry = current($entries);
+			
+			// Find parent entries:
+			$entry_ids = array($entry_id);
+			
+			while (true) {
+				$current = Symphony::Database()->fetchVar('relation_id', 0, sprintf('
+					SELECT DISTINCT
+						d.relation_id
+					FROM
+						`tbl_entries_data_%d` AS d
+					WHERE
+						d.entry_id = %d
+					',
+					$breadcrumb->get('id'),
+					$entry_id
+				));
+				
+				if (empty($current)) break;
+				
+				$entry_ids[] = $entry_id = $current;
+			}
+			
+			if (empty($entry_ids)) return array();
+			
+			$entry_ids = array_reverse($entry_ids);
+			
+			return $this->getBreadcrumbItems(
+				$breadcrumb->get('parent_section'), $entry_ids
+			);
 		}
 		
 		/**
 		 * Return an array of entries from an array of entry IDs
 		 * maintaining the original sorting.
-		 * @param Field $field
+		 * @param integer $section_id
 		 * @param array $entry_ids
 		 */
-		public function getBreadcrumbEntries(Field $field, array $entry_ids) {
+		public function getBreadcrumbItems($section_id, array $entry_ids) {
 			if (empty($entry_ids)) return array();
 			
-			$entries = array();
+			$items = array();
 			
 			foreach ($entry_ids as $index => $entry_id) {
 				if (!isset(self::$entryCache[$entry_id])) continue;
 				
-				$entries[] = self::$entryCache[$entry_id];
+				$items[] = self::$entryCache[$entry_id];
 				
 				unset($entry_ids[$index]);
 			}
 			
 			if (!empty($entry_ids)) {
-				$em = new EntryManager(Symphony::Engine());
-				$sm = new SectionManager(Symphony::Engine());
-				$section = $sm->fetch($field->get('parent_section'));
-				$extras = $em->fetch($entry_ids, $section->get('id'));
+				$title = $this->getFieldBySectionId($section_id);
 				
-				foreach ($extras as $entry) {
-					self::$entryCache[$entry->get('id')] = $entry;
+				foreach ($entry_ids as $entry_id) {
+					$item = $this->getBreadcrumbItem($title, $entry_id);
+					
+					$items[] = self::$entryCache[$item->entry] = $item;
 				}
-				
-				$entries = array_merge($entries, $extras);
 			}
 			
 			// Sort entries by ID so that that appear in the same
 			// order as the $entry_ids variable:
-			usort($entries, function($a, $b) use ($entry_ids) {
-				return array_search($a->get('id'), $entry_ids)
-					> array_search($b->get('id'), $entry_ids);
+			usort($items, function($a, $b) use ($entry_ids) {
+				return array_search($a->entry, $entry_ids)
+					> array_search($b->entry, $entry_ids);
 			});
 			
-			return $entries;
+			return $items;
 		}
 		
 		/**
-		 * Get the existing handle of an entry, or generate one if
-		 * no handle exists.
-		 * @param Entry $entry
-		 * @param Field $field
+		 * Fetch a breadcrumb item.
+		 * @param Field $title
+		 * @param integer $entry_id
 		 */
-		public function getBreadcrumbEntryHandle(Entry $entry, Field $field) {
-			$data = $entry->getData($field->get('id'));
-			$span = new XMLElement('span');
+		public function getBreadcrumbItem(Field $title, $entry_id) {
+			$result = (object)array(
+				'entry'		=> $entry_id,
+				'section'	=> $title->get('parent_section'),
+				'handle'	=> null,
+				'value'		=> null
+			);
+			$data = Symphony::Database()->fetchRow(0, sprintf('
+				SELECT DISTINCT
+					d.*
+				FROM
+					`tbl_entries_data_%d` AS d
+				WHERE
+					d.entry_id = %d
+				',
+				$title->get('id'),
+				$entry_id
+			));
 			
-			if (isset($data['handle'])) {
-				return $data['handle'];
+			if (isset($data['value'])) {
+				$result->value = General::sanitize($data['value']);
 			}
 			
-			$field->prepareTableValue($data, $span, $entry->get('id'));
+			else {
+				$span = new XMLElement('span');
+				$title->prepareTableValue($data, $span, $entry_id);
+				$result->value = strip_tags($span->generate());
+			}
 			
-			return Lang::createHandle(strip_tags($span->generate()));
-		}
-		
-		/**
-		 * Get the title value of an entry.
-		 * @param Entry $entry
-		 * @param Field $field
-		 */
-		public function getBreadcrumbEntryTitle($entry, $field) {
-			$data = $entry->getData($field->get('id'));
-			$span = new XMLElement('span');
+			if (isset($data['handle'])) {
+				$result->handle = $data['handle'];
+			}
 			
-			$field->prepareTableValue($data, $span, $entry->get('id'));
+			else {
+				$handle = Lang::createHandle($result->value);
+			}
 			
-			return General::sanitize(strip_tags($span->generate()));
+			return $result;
 		}
 		
 		/**
@@ -251,7 +283,7 @@
 		 * belongs to.
 		 * @param Field $field
 		 */
-		public function getBreadcrumbSection(Field $field) {
+		public function getSectionByField(Field $field) {
 			$sm = new SectionManager(Symphony::Engine());
 			
 			return $sm->fetch($field->get('parent_section'));
@@ -260,9 +292,11 @@
 		/**
 		 * Find the first visible field in a section that is
 		 * not a breadcrumb field.
-		 * @param Section $section
+		 * @param integer $section_id
 		 */
-		public function getBreadcrumbTitle(Section $section) {
+		public function getFieldBySectionId($section_id) {
+			$sm = new SectionManager(Symphony::Engine());
+			$section = $sm->fetch($section_id);
 			$fields = $section->fetchVisibleColumns();
 			
 			if (empty($fields)) return null;

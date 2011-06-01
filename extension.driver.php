@@ -94,7 +94,7 @@
 		 * @param integer $ignore_id
 		 *	Don't output entries with this ID.
 		 */
-		public function getBreadcrumbChildren(Field $breadcrumb, $entry_id, $ignore_id = null) {
+		public function getBreadcrumbChildren(Field $breadcrumb, $entry_id = null, $ignore_id = null) {
 			$em = new EntryManager(Symphony::Engine());
 			$parent = $em->fetch($entry_id);
 			
@@ -241,7 +241,6 @@
 		public function getBreadcrumbItem(Field $title, $entry_id) {
 			$result = (object)array(
 				'entry'		=> $entry_id,
-				'section'	=> $title->get('parent_section'),
 				'handle'	=> null,
 				'value'		=> null
 			);

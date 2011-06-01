@@ -58,7 +58,7 @@
 		}
 
 		public function canFilter() {
-			return false;
+			return true;
 		}
 
 		public function canPrePopulate() {
@@ -159,6 +159,60 @@
 			$wrapper->appendChild($element);
 		}
 		
+		public function buildDSRetrivalSQL($data, &$joins, &$where, $andOperation = false) {
+			$parents = $this->driver->getBreadcrumbChildren($this);
+			$items = array(); $entry_id = null;
+			$field_id = $this->get('id');
+			
+			if (preg_match('/^children-of:\s*(.*)/', $data[0], $matches)) {
+				$mode = 'children-of';
+				$paths = preg_split('%/%', $matches[1], 0, PREG_SPLIT_NO_EMPTY);
+			}
+			
+			else {
+				$mode = 'item';
+				$paths = preg_split('%/%', $data[0], 0, PREG_SPLIT_NO_EMPTY);
+			}
+			
+			// Find the item specified in the path:
+			foreach ($paths as $path) {
+				foreach ($parents as $parent) {
+					if ($parent->handle != $path) continue;
+					
+					$items[] = $entry_id = $parent->entry;
+					$parents = $this->driver->getBreadcrumbChildren($this, $parent->entry);
+					
+					break;
+				}
+			}
+			
+			// Path not found:
+			if (count($items) != count($paths)) return false;
+			
+			if ($mode == 'children-of') {
+				$this->_key++;
+				$joins .= "
+					LEFT JOIN
+						`tbl_entries_data_{$field_id}` AS t{$field_id}_{$this->_key}
+						ON (e.id = t{$field_id}_{$this->_key}.entry_id)
+				";
+				$where .= "
+					AND (
+						t{$field_id}_{$this->_key}.relation_id = '{$entry_id}'
+					)
+				";
+			}
+			
+			if ($mode == 'item') {
+				$where .= sprintf(
+					"AND (e.id = %d)",
+					$entry_id
+				);
+			}
+			
+			return true;
+		}
+		
 		/**
 		 * Commit the settings of this field from the section editor to
 		 * create an instance of this field in a section.
@@ -190,35 +244,14 @@
 			return $this->Database->insert($fields, "tbl_fields_{$handle}");
 		}
 		
-		/**
-		 * Display the default settings panel, calls the `buildSummaryBlock`
-		 * function after basic field settings are added to the wrapper.
-		 *
-		 * @see buildSummaryBlock()
-		 * @param XMLElement $wrapper
-		 *	the input XMLElement to which the display of this will be appended.
-		 * @param mixed errors (optional)
-		 *	the input error collection. this defaults to null.
-		 */
-		public function displaySettingsPanel($wrapper, $errors = null) {
-			parent::displaySettingsPanel($wrapper, $errors);
-
-			$order = $this->get('sortorder');
+		public function displayDatasourceFilterPanel($wrapper, $data = null, $errors = null, $prefix = null, $suffix = null) {
+			parent::displayDatasourceFilterPanel($wrapper, $data, $errors, $prefix, $suffix);
 			
-			// Options:
-			$list = new XMLElement('ul');
-			$list->setAttribute('class', 'options-list');
+			$help = new XMLElement('p');
+			$help->setAttribute('class', 'help');
+			$help->setValue(__('Enter the path to the item you want to select, optionally prepend <code>children-of:</code> to get the children of that item.'));
 
-			$item = new XMLElement('li');
-			$this->appendShowAssociationCheckbox($item);
-			$list->appendChild($item);
-
-			$item = new XMLElement('li');
-			$this->appendShowColumnCheckbox($item);
-			$list->appendChild($item);
-			
-			$wrapper->appendChild($list);
-			$wrapper->setAttribute('class', $wrapper->getAttribute('class') . ' field-textbox');
+			$wrapper->appendChild($help);
 		}
 		
 		/**
@@ -276,6 +309,37 @@
 
 			$wrapper->appendChild($label);
 			$wrapper->appendChild($breadcrumb);
+		}
+		
+		/**
+		 * Display the default settings panel, calls the `buildSummaryBlock`
+		 * function after basic field settings are added to the wrapper.
+		 *
+		 * @see buildSummaryBlock()
+		 * @param XMLElement $wrapper
+		 *	the input XMLElement to which the display of this will be appended.
+		 * @param mixed errors (optional)
+		 *	the input error collection. this defaults to null.
+		 */
+		public function displaySettingsPanel($wrapper, $errors = null) {
+			parent::displaySettingsPanel($wrapper, $errors);
+
+			$order = $this->get('sortorder');
+			
+			// Options:
+			$list = new XMLElement('ul');
+			$list->setAttribute('class', 'options-list');
+
+			$item = new XMLElement('li');
+			$this->appendShowAssociationCheckbox($item);
+			$list->appendChild($item);
+
+			$item = new XMLElement('li');
+			$this->appendShowColumnCheckbox($item);
+			$list->appendChild($item);
+			
+			$wrapper->appendChild($list);
+			$wrapper->setAttribute('class', $wrapper->getAttribute('class') . ' field-textbox');
 		}
 		
 		/**

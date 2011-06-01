@@ -21,7 +21,7 @@
 			return array(
 				'name'			=> 'Field: Breadcrumb',
 				'version'		=> '0.1',
-				'release-date'	=> '2011-05-24',
+				'release-date'	=> '2011-06-01',
 				'author'		=> array(
 					'name'			=> 'Rowan Lewis',
 					'website'		=> 'http://rowanlewis.com/',

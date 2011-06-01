@@ -1,9 +1,9 @@
 # Field: Breadcrumb
 
-A new field that lets you link your entries to each other with an intelligent interface.
+A new field that lets you link your entries to each other with an intelligent breadcrumb interface.
 
 __Version:__ 0.1  
-__Date:__ 27 May 2011  
+__Date:__ 1 June 2011  
 __Requirements:__ Symphony 2.2  
 __Author:__ Rowan Lewis <me@rowanlewis.com>  
 __GitHub Repository:__ <http://github.com/rowan-lewis/breadcrumb_field>  

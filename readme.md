@@ -22,29 +22,23 @@ __GitHub Repository:__ <http://github.com/rowan-lewis/breadcrumb_field>
 
 ## Usage
 
-The Breadcrumb interface may be a little confusing. The first thing you'll see is two buttons:
+The Breadcrumb interface may be a little confusing; tis is the first thing you'll see:
 
-    ┌───┬───┐
-    │ ☓ │ ▾ │
-    └───┴───┘
+![An empty breadcrumb][usage-step-one]
 
 The first button is the clear button, if there where any items in the breadcrumb it would remove them, the second button is the add item button. If you don't have any entries in your section, clicking the add item button won't do anything.
 
 After clicking the add item button you will see this:
 
-    ┌───┬───┐
-    │ ☓ │ ▾ │
-    └───┴───┘
-         ┌^────────────────┐
-         │ An entry        │
-         │ Another entry   │
-         │ ...             │
-         └─────────────────┘
+![An empty breadcrumb][usage-step-two]
 
-Clicking on one of the drop down options will add it to your breadcrumb:
+Clicking on one of the drop down options will add it to the end your breadcrumb:
 
-    ┌───┬───────────────┬───┐
-    │ ☓ │ Another entry │ ▾ │
-    └───┴───────────────┴───┘
+![An empty breadcrumb][usage-step-three]
 
 If you click on the add item button again, it will give you a list of entries aleady linked to the last item in the breadcrumb.
+
+
+[usage-step-one]: https://github.com/rowan-lewis/breadcrumb_field/raw/master/docs/usage-step-one.png
+[usage-step-two]: https://github.com/rowan-lewis/breadcrumb_field/raw/master/docs/usage-step-two.png
+[usage-step-three]: https://github.com/rowan-lewis/breadcrumb_field/raw/master/docs/usage-step-three.png

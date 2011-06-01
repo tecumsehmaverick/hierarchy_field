@@ -144,7 +144,7 @@
 				$element->setAttribute('mode', $mode);
 			}
 			
-			else {
+			else if ($mode == 'parent') {
 				$items = $this->driver->getBreadcrumbParents($this, $data['relation_id']);
 				$path = array();
 				
@@ -152,8 +152,31 @@
 					$path[] = $item->handle;
 				}
 				
-				$element->setAttribute('mode', 'path');
-				$element->setValue(implode('/', $path));
+				$child = new XMLElement('item');
+				$child->setAttribute('id', $item->entry);
+				$child->setAttribute('path', implode('/', $path));
+				$child->setAttribute('handle', $item->handle);
+				$child->setAttribute('value', $item->value);
+				$element->appendChild($child);
+				$element->setAttribute('mode', 'parent');
+			}
+			
+			else {
+				$items = $this->driver->getBreadcrumbParents($this, $data['relation_id']);
+				$item = $items[] = $this->driver->getBreadcrumbItem($title, $entry_id);
+				$path = array();
+				
+				foreach ($items as $item) {
+					$path[] = $item->handle;
+				}
+				
+				$child = new XMLElement('item');
+				$child->setAttribute('id', $item->entry);
+				$child->setAttribute('path', implode('/', $path));
+				$child->setAttribute('handle', $item->handle);
+				$child->setAttribute('value', $item->value);
+				$element->appendChild($child);
+				$element->setAttribute('mode', 'current');
 			}
 			
 			$wrapper->appendChild($element);
@@ -357,9 +380,10 @@
 			$label = $this->get('label');
 			
 			return array(
-				"{$name}: path",
 				"{$name}: children",
+				"{$name}: parent",
 				"{$name}: parents",
+				"{$name}: current",
 				"{$name}: siblings",
 				"{$name}: tree"
 			);

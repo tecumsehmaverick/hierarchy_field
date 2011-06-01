@@ -39,12 +39,9 @@
 					`id` int(11) unsigned NOT NULL auto_increment,
 					`entry_id` int(11) unsigned NOT NULL,
 					`relation_id` int(11) unsigned DEFAULT NULL,
-					`value` text DEFAULT NULL,
-					`depth` int(11) unsigned NOT NULL,
 					PRIMARY KEY	(`id`),
 					KEY `entry_id` (`entry_id`),
-					KEY `relation_id` (`relation_id`),
-					KEY `depth` (`depth`)
+					KEY `relation_id` (`relation_id`)
 				) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 			");
 		}

@@ -448,6 +448,21 @@
 				return implode(' ▸ ', $links);
 			}
 		}
+		
+		public function preparePlainTextValue($data, $entry_id = null) {
+			if ($entry_id == null) return null;
+			
+			$items = $this->driver->getBreadcrumbParents($this, $entry_id, true);
+			$sm = new SectionManager(Symphony::Engine());
+			$section = $sm->fetch($this->get('parent_section'));
+			$bits = array();
+			
+			foreach ($items as $item) {
+				$bits[] = $item->value;
+			}
+			
+			return implode(' ▸ ', $bits);
+		}
 
 		/**
 		 * Process the raw field data.

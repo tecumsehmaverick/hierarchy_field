@@ -139,6 +139,7 @@
 				$builder($element, $items);
 				
 				$element->setAttribute('mode', $mode);
+				$wrapper->appendChild($element);
 			}
 			
 			else if ($mode == 'parent') {
@@ -149,13 +150,16 @@
 					$path[] = $item->handle;
 				}
 				
-				$child = new XMLElement('item');
-				$child->setAttribute('id', $item->entry);
-				$child->setAttribute('path', implode('/', $path));
-				$child->setAttribute('handle', $item->handle);
-				$child->setAttribute('value', $item->value);
-				$element->appendChild($child);
-				$element->setAttribute('mode', 'parent');
+				if (isset($item)) {
+					$child = new XMLElement('item');
+					$child->setAttribute('id', $item->entry);
+					$child->setAttribute('path', implode('/', $path));
+					$child->setAttribute('handle', $item->handle);
+					$child->setAttribute('value', $item->value);
+					$element->appendChild($child);
+					$element->setAttribute('mode', 'parent');
+					$wrapper->appendChild($element);
+				}
 			}
 			
 			else {
@@ -174,9 +178,8 @@
 				$child->setAttribute('value', $item->value);
 				$element->appendChild($child);
 				$element->setAttribute('mode', 'current');
+				$wrapper->appendChild($element);
 			}
-			
-			$wrapper->appendChild($element);
 		}
 		
 		public function buildDSRetrivalSQL($data, &$joins, &$where, $andOperation = false) {

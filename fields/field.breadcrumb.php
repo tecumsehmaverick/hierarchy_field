@@ -98,36 +98,6 @@
 				|| $mode == 'siblings'
 				|| $mode == 'tree'
 			) {
-				$field = $this;
-				$builder = function($element, $items) use ($title, $mode, $field, &$builder) {
-					foreach ($items as $item) {
-						$path_items = $field->driver->getBreadcrumbParents($field, $item->entry);
-						$path = array();
-						
-						foreach ($path_items as $path_item) {
-							$path[] = $path_item->handle;
-						}
-						
-						$path = array_reverse($path);
-						
-						$child = new XMLElement('item');
-						$child->setAttribute('id', $item->entry);
-						$child->setAttribute('path', implode('/', $path));
-						$child->setAttribute('handle', $item->handle);
-						$child->setAttribute('value', $item->value);
-						
-						if ($mode == 'tree') {
-							$items = $field->driver->getBreadcrumbChildren(
-								$field, $item->entry
-							);
-							
-							$builder($child, $items);
-						}
-						
-						$element->appendChild($child);
-					}
-				};
-				
 				if ($mode == 'children' || $mode == 'tree') {
 					$items = $this->driver->getBreadcrumbChildren(
 						$this, $entry_id
@@ -146,7 +116,7 @@
 					);
 				}
 				
-				$builder($element, $items);
+				$this->buildFormattedItem($element, $items);
 				
 				$element->setAttribute('mode', $mode);
 				$wrapper->appendChild($element);
@@ -189,6 +159,35 @@
 				$element->appendChild($child);
 				$element->setAttribute('mode', 'current');
 				$wrapper->appendChild($element);
+			}
+		}
+		
+		public function buildFormattedItem($element, $items, $title, $mode) {
+			foreach ($items as $item) {
+				$path_items = $this->driver->getBreadcrumbParents($this, $item->entry);
+				$path = array();
+				
+				foreach ($path_items as $path_item) {
+					$path[] = $path_item->handle;
+				}
+				
+				$path = array_reverse($path);
+				
+				$child = new XMLElement('item');
+				$child->setAttribute('id', $item->entry);
+				$child->setAttribute('path', implode('/', $path));
+				$child->setAttribute('handle', $item->handle);
+				$child->setAttribute('value', $item->value);
+				
+				if ($mode == 'tree') {
+					$items = $field->driver->getBreadcrumbChildren(
+						$field, $item->entry
+					);
+					
+					$this->buildFormattedItem($child, $items, $title, $mode);
+				}
+				
+				$element->appendChild($child);
 			}
 		}
 		

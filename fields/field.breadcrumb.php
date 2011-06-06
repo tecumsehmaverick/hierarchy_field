@@ -101,8 +101,18 @@
 				$field = $this;
 				$builder = function($element, $items) use ($title, $mode, $field, &$builder) {
 					foreach ($items as $item) {
+						$path_items = $field->driver->getBreadcrumbParents($field, $item->entry);
+						$path = array();
+						
+						foreach ($path_items as $path_item) {
+							$path[] = $path_item->handle;
+						}
+						
+						$path = array_reverse($path);
+						
 						$child = new XMLElement('item');
 						$child->setAttribute('id', $item->entry);
+						$child->setAttribute('path', implode('/', $path));
 						$child->setAttribute('handle', $item->handle);
 						$child->setAttribute('value', $item->value);
 						
@@ -219,11 +229,22 @@
 						`tbl_entries_data_{$field_id}` AS t{$field_id}_{$this->_key}
 						ON (e.id = t{$field_id}_{$this->_key}.entry_id)
 				";
-				$where .= "
-					AND (
-						t{$field_id}_{$this->_key}.relation_id = '{$entry_id}'
-					)
-				";
+				
+				if (count($items)) {
+					$where .= "
+						AND (
+							t{$field_id}_{$this->_key}.relation_id = '{$entry_id}'
+						)
+					";
+				}
+				
+				else {
+					$where .= "
+						AND (
+							t{$field_id}_{$this->_key}.relation_id IS NULL
+						)
+					";
+				}
 			}
 			
 			if ($mode == 'item') {

@@ -116,7 +116,7 @@
 					);
 				}
 				
-				$this->buildFormattedItem($element, $items);
+				$this->buildFormattedItem($element, $items, $title, $mode);
 				
 				$element->setAttribute('mode', $mode);
 				$wrapper->appendChild($element);

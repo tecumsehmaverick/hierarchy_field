@@ -122,10 +122,6 @@
 									if (index > next_depth - 1) {
 										$(this).addClass('endpoint');
 									}
-									
-									else {
-										$(this).addClass('midpoint');
-									}
 								});
 						}
 						

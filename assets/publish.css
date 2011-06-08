@@ -6,39 +6,44 @@ form > table tr.breadcrumb-child:not(.selected) td,
 form > table tr.breadcrumb-child:nth-child(2n):not(.selected) td {
 	background-color: transparent;
 }
-form > table tr.breadcrumb-child td:first-child {
+form > table tr td:first-child {
 	overflow: hidden;
+	padding-left: 29px;
 }
 
 form > table span.breadcrumb-spacer {
-	border-left: 1px solid black;
+	border-left: 1px solid hsla(0, 0%, 0%, 0.2);
 	display: inline-block;
 	height: 40px;
-	margin: -40px 5px -40px -5px;
+	margin: -40px 10px -40px -10px;
 	vertical-align: middle;
-	width: 15px;
+	width: 14px;
 }
 form > table span.breadcrumb-spacer.endpoint {
-	border-bottom: 1px solid black;
-	border-left: 1px solid black;
 	margin-bottom: 0;
 }
+form > table span.breadcrumb-spacer.endpoint:after,
 form > table span.breadcrumb-spacer.midpoint:after {
-	border-bottom: 1px solid black;
+	border-bottom: 1px solid hsla(0, 0%, 0%, 0.2);
 	content: '';
 	display: inline-block;
 	height: 20px;
-	width: 15px;
+	width: 6px;
+}
+form > table span.breadcrumb-spacer.endpoint:after {
+	height: 39px;
 }
 form > table span.breadcrumb-spacer:last-of-type {
 	
 }
-form > table .selected span.breadcrumb-spacer {
+form > table .selected span.breadcrumb-spacer,
+form > table .selected span.breadcrumb-spacer:after {
 	border-color: hsla(0, 0%, 100%, 0.3);
 }
 form > table a.breadcrumb-toggle {
 	display: inline-block;
-	margin: -0.67em 0 -0.67em -1005px;
+	height: 40px;
+	margin: -40px 1px -40px -1011px;
 	padding-left: 1000px;
 	text-decoration: none;
 	width: 15px;

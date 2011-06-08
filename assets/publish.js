@@ -35,20 +35,14 @@
 					
 					// Has a parent:
 					if (parent_entry) {
-						var $parent = $table
-							.find(
-								'tbody tr:has(span[data-breadcrumb-entry = '
-								+ parent_entry
-								+ '])'
-							);
-						
-						// Move the child after its parent:
 						$current
 							.addClass('breadcrumb-child')
-							.insertAfter($parent);
-						
-						// Associate child with parent:
-						$current.data().parent = $parent;
+							.data().parent = $table
+								.find(
+									'tbody tr:has(span[data-breadcrumb-entry = '
+									+ parent_entry
+									+ '])'
+								);
 					}
 					
 					// Has children:
@@ -92,7 +86,7 @@
 			// Prepare child items:
 			$table
 				.find('tbody tr.breadcrumb-child')
-				.hide()
+				//.hide()
 				.each(function() {
 					var $current = $(this);
 					var depth = $current.data().depth;
@@ -105,9 +99,50 @@
 							);
 					}
 				});
+			
+			// Sort tree:
+			$table
+				.find('tbody tr.breadcrumb-parent:not(.breadcrumb-child)')
+				.trigger('sort-tree');
 		});
 	
 	$('form > table tr.breadcrumb-parent')
+		.live('sort-tree', function() {
+			var $parent = $(this);
+			var $children = $parent.data().children;
+			
+			$children
+				.sort(function(a, b) {
+					return $(a).data().depth > $(b).data().depth;
+				})
+				.each(function() {
+					$(this)
+						.insertAfter($parent);
+				});
+			
+			$children
+				.filter('.breadcrumb-parent')
+				.trigger('sort-tree');
+		})
+		
+		.live('click.selectable', function() {
+			var $current = $(this);
+			var $children = $current.data().children;
+			
+			if ($current.is('.selected')) {
+				$current
+					.trigger('expand-tree')
+					.trigger('select-tree');
+			}
+			
+			else {
+				$children
+					.removeClass('selected')
+					.find('input[type = "checkbox"]')
+					.attr('checked', false);
+			}
+		})
+		
 		.live('toggle-tree', function() {
 			var $current = $(this);
 			
@@ -120,19 +155,73 @@
 			}
 		})
 		
+		.live('select-tree', function() {
+			var $current = $(this);
+			var $children = $current.data().children
+			
+			$current
+				.addClass('selected')
+				.find('input[type = "checkbox"]')
+				.attr('checked', true);
+			$children
+				.trigger('expand-tree')
+				.trigger('select-tree');
+		})
+		
+		.live('deselect-tree', function() {
+			var $current = $(this);
+			var $children = $current.data().children
+			
+			$current
+				.removeClass('selected')
+				.find('input[type = "checkbox"]')
+				.attr('checked', false);
+			$children
+				.trigger('deselect-tree');
+		})
+		
 		.live('collapse-tree', function() {
-			$(this)
-				.data()
-				.children
+			var $current = $(this);
+			var $children = $current.data().children
 				.trigger('collapse-tree')
 				.hide();
+			
+			if ($current.is('.selected')) {
+				$current
+					.trigger('deselect-tree');
+			}
 		})
 		
 		.live('expand-tree', function() {
-			$(this)
-				.data()
-				.children
+			var $current = $(this);
+			var $children = $current.data().children
 				.show();
+			
+			//if ($current.is('.selected')) {
+			//	$children
+			//		.addClass('selected')
+			//		.find('input[type = "checkbox"]')
+			//		.attr('checked', true);
+			//}
+		});
+	
+	$('form > table tr.breadcrumb-child')
+		.live('select-tree', function() {
+			var $current = $(this);
+			
+			$current
+				.addClass('selected')
+				.find('input[type = "checkbox"]')
+				.attr('checked', true);
+		})
+		
+		.live('deselect-tree', function() {
+			var $current = $(this);
+			
+			$current
+				.removeClass('selected')
+				.find('input[type = "checkbox"]')
+				.attr('checked', false);
 		});
 	
 	$(document)

@@ -8,13 +8,24 @@
 	
 	require_once EXTENSIONS . '/breadcrumb_ui/lib/class.breadcrumb_ui.php';
 
+	/**
+	 * A self linking breadcrumb field.
+	 */
 	class FieldBreadcrumb extends Field {
+		/**
+		 * The breadcrumb field extension driver.
+		 * 
+		 * @var ExtensionDriver
+		 */
 		public $driver = null;
 
-	/*-------------------------------------------------------------------------
-		Definition:
-	-------------------------------------------------------------------------*/
-
+		/**
+		 * Construct a new instance of the breadcrumb field.
+		 *
+		 * @param mixed $parent
+		 *  The class that created this Field object, usually the FieldManager,
+		 *  passed by reference.
+		 */
 		public function __construct($parent) {
 			parent::__construct($parent);
 			
@@ -29,41 +40,6 @@
 			$this->set('show_association', 'yes');
 			$this->set('required', 'yes');
 			$this->set('related_field_id', null);
-		}
-
-		public function createTable() {
-			$field_id = $this->get('id');
-
-			return $this->_engine->Database->query("
-				CREATE TABLE IF NOT EXISTS `tbl_entries_data_{$field_id}` (
-					`id` int(11) unsigned NOT NULL auto_increment,
-					`entry_id` int(11) unsigned NOT NULL,
-					`relation_id` int(11) unsigned DEFAULT NULL,
-					PRIMARY KEY	(`id`),
-					KEY `entry_id` (`entry_id`),
-					KEY `relation_id` (`relation_id`)
-				) ENGINE=MyISAM DEFAULT CHARSET=utf8;
-			");
-		}
-
-		public function allowDatasourceOutputGrouping() {
-			return false;
-		}
-
-		public function allowDatasourceParamOutput() {
-			return false;
-		}
-
-		public function canFilter() {
-			return true;
-		}
-
-		public function canPrePopulate() {
-			return false;
-		}
-
-		public function isSortable() {
-			return false;
 		}
 		
 		/**
@@ -162,7 +138,15 @@
 			}
 		}
 		
-		public function buildFormattedItem($element, $items, $title, $mode) {
+		/**
+		 * Utility for building formatted XML.
+		 *
+		 * @param XMLElement $element
+		 * @param array $items
+		 * @param Field $title
+		 * @param string $mode
+		 */
+		public function buildFormattedItem(XMLElement $element, $items, $title, $mode) {
 			foreach ($items as $item) {
 				$path_items = $this->driver->getBreadcrumbParents($this, $item->entry);
 				$path = array();
@@ -180,7 +164,7 @@
 				$child->setAttribute('value', $item->value);
 				
 				if ($mode == 'tree') {
-					$items = $field->driver->getBreadcrumbChildren(
+					$items = $this->driver->getBreadcrumbChildren(
 						$field, $item->entry
 					);
 					
@@ -255,6 +239,19 @@
 			
 			return true;
 		}
+
+		/**
+		 * Test whether this field can be filtered. This default implementation
+		 * prohibits filtering. Filtering allows the xml output results to be limited
+		 * according to an input parameter. Subclasses should override this if
+		 * filtering is supported.
+		 *
+		 * @return boolean
+		 *	true if this can be filtered, false otherwise.
+		 */
+		public function canFilter() {
+			return true;
+		}
 		
 		/**
 		 * Commit the settings of this field from the section editor to
@@ -272,8 +269,8 @@
 			if ($id === false) return false;
 			
 			$fields = array(
-				'field_id'			=> $id,
-				'show_association'	=> $this->get('show_association')
+				'field_id'	=> $id,
+				'show_tree'	=> $this->get('show_tree')
 			);
 			
 			$this->Database->query("
@@ -286,7 +283,44 @@
 			
 			return $this->Database->insert($fields, "tbl_fields_{$handle}");
 		}
+
+		/**
+		 * The default field table construction method. This constructs the bare
+		 * minimum set of columns for a valid field table. Subclasses are expected
+		 * to overload this method to create a table structure that contains
+		 * additional columns to store the specific data created by the field.
+		 *
+		 * @return boolean
+		 */
+		public function createTable() {
+			$field_id = $this->get('id');
+
+			return $this->_engine->Database->query("
+				CREATE TABLE IF NOT EXISTS `tbl_entries_data_{$field_id}` (
+					`id` int(11) unsigned NOT NULL auto_increment,
+					`entry_id` int(11) unsigned NOT NULL,
+					`relation_id` int(11) unsigned DEFAULT NULL,
+					PRIMARY KEY	(`id`),
+					KEY `entry_id` (`entry_id`),
+					KEY `relation_id` (`relation_id`)
+				) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+			");
+		}
 		
+		/**
+		 * Display the default data-source filter panel.
+		 *
+		 * @param XMLElement $wrapper
+		 *	the input XMLElement to which the display of this will be appended.
+		 * @param mixed $data (optional)
+		 *	the input data. this defaults to null.
+		 * @param mixed errors (optional)
+		 *	the input error collection. this defaults to null.
+		 * @param string $fieldNamePrefix
+		 *	the prefix to apply to the display of this.
+		 * @param string $fieldNameSuffix
+		 *	the suffix to apply to the display of this.
+		 */
 		public function displayDatasourceFilterPanel($wrapper, $data = null, $errors = null, $prefix = null, $suffix = null) {
 			parent::displayDatasourceFilterPanel($wrapper, $data, $errors, $prefix, $suffix);
 			
@@ -366,20 +400,35 @@
 		 */
 		public function displaySettingsPanel($wrapper, $errors = null) {
 			parent::displaySettingsPanel($wrapper, $errors);
-
+			
 			$order = $this->get('sortorder');
 			
 			// Options:
-			$list = new XMLElement('ul');
-			$list->setAttribute('class', 'options-list');
-
-			$item = new XMLElement('li');
-			$this->appendShowAssociationCheckbox($item);
-			$list->appendChild($item);
-
-			$item = new XMLElement('li');
-			$this->appendShowColumnCheckbox($item);
-			$list->appendChild($item);
+			$list = new XMLElement('div');
+			$list->setAttribute('class', 'compact');
+			
+			$input = Widget::Input(
+				"fields[{$order}][show_tree]",
+				'no', 'hidden'
+			);
+			$list->appendChild($input);
+			
+			$input = Widget::Input(
+				"fields[{$order}][show_tree]",
+				'yes', 'checkbox'
+			);
+			
+			if ($this->get('show_tree') == 'yes') {
+				$input->setAttribute('checked', 'checked');
+			}
+			
+			$list->appendChild(Widget::Label(
+				__('%s Use tree view on publish table', array(
+					$input->generate()
+				))
+			));
+			
+			$this->appendShowColumnCheckbox($list);
 			
 			$wrapper->appendChild($list);
 			$wrapper->setAttribute('class', $wrapper->getAttribute('class') . ' field-textbox');
@@ -443,7 +492,12 @@
 			$section = $sm->fetch($this->get('parent_section'));
 			$links = array();
 			
+			// Build the list of links:
 			foreach ($items as $item) {
+				if (!isset($root_id)) {
+					$root_id = $item->entry;
+				}
+				
 				$element = new XMLElement('a');
 				$element->setAttribute('href', sprintf(
 					'%s/publish/%s/edit/%d',
@@ -456,19 +510,61 @@
 				$links[] = $element->generate();
 			}
 			
-			if (!$link instanceof XMLElement) {
-				array_pop($links);
-			}
-			
-			if ($link instanceof XMLElement) {
-				return implode(' ◂ ', array_reverse($links));
+			// Add extra information for show tree scripts.
+			if ($this->driver->isShowTreeEnabled()) {
+				$span = new XMLElement('span');
+				$span->setAttribute('data-breadcrumb-entry', $entry_id);
+				$span->setAttribute('data-breadcrumb-r', $root_id);
+				
+				// If this is not going in the first column, sort it in reverse:
+				if (!$link instanceof XMLElement) {
+					$links = array_reverse($links);
+				}
+				
+				if ($root_id != $entry_id) {
+					array_shift($links);
+					
+					$span->setValue(implode(' ▸ ', $links));
+					$span->setAttribute('data-breadcrumb-root', $root_id);
+				}
+				
+				else if ($link instanceof XMLElement) {
+					$span->setValue(implode(' ▸ ', $links));
+				}
+				
+				else {
+					$span->setAttribute('class', 'inactive');
+					$span->setValue(parent::prepareTableValue(null, $link));
+				}
+				
+				$value = $span->generate();
 			}
 			
 			else {
-				return implode(' ▸ ', $links);
+				// Only provide a link to the current entry when
+				// the system expects it:
+				if (!$link instanceof XMLElement && count($links)) {
+					array_pop($links);
+				}
+				
+				// If this is going in the first column, sort it in reverse:
+				if ($link instanceof XMLElement) {
+					$links = array_reverse($links);
+				}
+				
+				$value = implode(' ▸ ', $links);
 			}
+			
+			return $value;
 		}
 		
+		/**
+		 * An alternative to prepareTableValue that returns a simple
+		 * plain text value without any HTML marlup.
+		 *
+		 * @param array $data
+		 * @param integer $entry_id
+		 */
 		public function preparePlainTextValue($data, $entry_id = null) {
 			if ($entry_id == null) return null;
 			

@@ -36,6 +36,11 @@
 		public function getSubscribedDelegates() {
 			return array(
 				array(
+					'page' => '/backend/',
+					'delegate' => 'InitaliseAdminPageHead',
+					'callback' => 'appendScriptToHead'
+				),
+				array(
 					'page' => '/extension/breadcrumb_ui/',
 					'delegate' => 'AppendBreadcrumbOptions',
 					'callback' => 'appendBreadcrumbOptions'
@@ -58,13 +63,66 @@
 				CREATE TABLE IF NOT EXISTS `tbl_fields_breadcrumb` (
 					`id` int(11) unsigned NOT NULL auto_increment,
 					`field_id` int(11) unsigned NOT NULL,
-					`show_association` enum('yes','no') NOT NULL default 'yes',
+					`show_tree` enum('yes','no') NOT NULL default 'yes',
 					PRIMARY KEY (`id`),
 					KEY `field_id` (`field_id`)
 				) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 			");
 			
 			return true;
+		}
+		
+		/**
+		 * Add tree view scripts to head.
+		 */
+		public function appendScriptToHead($context) {
+			if ($this->isShowTreeEnabled() === false) return;
+			
+			$page = Symphony::Engine()->Page;
+			
+			// Tempoarily set the pagination size to a huge number:
+			Symphony::Configuration()->set('pagination_maximum_rows', 99999, 'symphony');
+			
+			// Include our styles and scripts:
+			$page->addStylesheetToHead(URL . '/extensions/breadcrumb_field/assets/publish.css');
+			$page->addScriptToHead(URL . '/extensions/breadcrumb_field/assets/publish.js');
+		}
+		
+		/**
+		 * Determines weather the current page is to be modified with
+		 * the 'show_tree' script.
+		 */
+		public function isShowTreeEnabled() {
+			$db = Symphony::Database();
+			$page = Symphony::Engine()->Page;
+			$context = $page->_context;
+			
+			// Make sure it's the correct page:
+			if (
+				!$page instanceof ContentPublish
+				|| !isset($context['section_handle'])
+				|| $context['page'] != 'index'
+			) return false;
+			
+			// Is show tree enabled?
+			return (boolean)$db->fetchVar(
+				'enabled', 0,
+				sprintf("
+					SELECT
+						d.show_tree = 'yes' AS `enabled`
+					FROM
+						`tbl_fields_breadcrumb` AS d,
+						`tbl_fields` AS f,
+						`tbl_sections` AS s
+					WHERE
+						d.show_tree = 'yes'
+						AND d.field_id = f.id
+						AND f.parent_section = s.id
+						AND s.handle = '%s'
+					",
+					$context['section_handle']
+				)
+			);
 		}
 		
 		/**
@@ -203,7 +261,7 @@
 		public function getBreadcrumbItems($section_id, array $entry_ids) {
 			if (empty($entry_ids)) return array();
 			
-			$items = array();
+			$items = array(); $sort_ids = $entry_ids;
 			
 			foreach ($entry_ids as $index => $entry_id) {
 				if (!isset(self::$entryCache[$entry_id])) continue;
@@ -225,9 +283,9 @@
 			
 			// Sort entries by ID so that that appear in the same
 			// order as the $entry_ids variable:
-			usort($items, function($a, $b) use ($entry_ids) {
-				return array_search($a->entry, $entry_ids)
-					> array_search($b->entry, $entry_ids);
+			usort($items, function($a, $b) use ($sort_ids) {
+				return array_search($a->entry, $sort_ids)
+					> array_search($b->entry, $sort_ids);
 			});
 			
 			return $items;

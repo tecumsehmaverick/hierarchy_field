@@ -83,27 +83,59 @@
 						});
 				});
 			
-			// Prepare child items:
+			// Sort tree:
 			$table
-				.find('tbody tr.breadcrumb-child')
+				.find('tbody tr.breadcrumb-parent:not(.breadcrumb-child)')
+				.trigger('sort-tree');
+			
+			// Insert item spacers:
+			$table
+				.find('tbody tr')
 				//.hide()
 				.each(function() {
 					var $current = $(this);
-					var depth = $current.data().depth;
+					var temp_depth = $current.data().depth;
+					var current_depth = temp_depth;
 					
-					while (depth-- > 0) {
-						$('<span />')
+					while (temp_depth-- > 0) {
+						var $spacer = $('<span />')
 							.addClass('breadcrumb-spacer')
 							.prependTo(
 								$current.find('td:first')
 							);
 					}
+					
+					if ($current.is(':last-child')) {
+						$current
+							.find('span.breadcrumb-spacer')
+							.addClass('endpoint');
+					}
+					
+					else {
+						var next_depth = $current.next().data().depth;
+						var depth_diff = current_depth - next_depth;
+						
+						if (depth_diff > 0) {
+							$current
+								.find('span.breadcrumb-spacer')
+								.each(function(index) {
+									if (index > next_depth - 1) {
+										$(this).addClass('endpoint');
+									}
+									
+									else {
+										$(this).addClass('midpoint');
+									}
+								});
+						}
+						
+						else {
+							$current
+								.find('span.breadcrumb-spacer:last-of-type')
+								.addClass('midpoint');
+						}
+					}
 				});
-			
-			// Sort tree:
-			$table
-				.find('tbody tr.breadcrumb-parent:not(.breadcrumb-child)')
-				.trigger('sort-tree');
 		});
 	
 	$('form > table tr.breadcrumb-parent')

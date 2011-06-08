@@ -493,8 +493,8 @@
 			$links = array();
 			
 			// Build the list of links:
-			foreach ($items as $item) {
-				if (!isset($root_id)) {
+			foreach ($items as $index => $item) {
+				if ($index == count($items) - 2) {
 					$root_id = $item->entry;
 				}
 				
@@ -514,27 +514,21 @@
 			if ($this->driver->isShowTreeEnabled()) {
 				$span = new XMLElement('span');
 				$span->setAttribute('data-breadcrumb-entry', $entry_id);
-				$span->setAttribute('data-breadcrumb-r', $root_id);
+				$span->setAttribute('data-breadcrumb-depth', 0);
 				
 				// If this is not going in the first column, sort it in reverse:
 				if (!$link instanceof XMLElement) {
 					$links = array_reverse($links);
 				}
 				
-				if ($root_id != $entry_id) {
-					array_shift($links);
-					
-					$span->setValue(implode(' ▸ ', $links));
-					$span->setAttribute('data-breadcrumb-root', $root_id);
-				}
-				
-				else if ($link instanceof XMLElement) {
-					$span->setValue(implode(' ▸ ', $links));
+				if (isset($root_id) && $root_id != $entry_id) {
+					$span->setValue(current($links));
+					$span->setAttribute('data-breadcrumb-parent', $root_id);
+					$span->setAttribute('data-breadcrumb-depth', count($items) - 1);
 				}
 				
 				else {
-					$span->setAttribute('class', 'inactive');
-					$span->setValue(parent::prepareTableValue(null, $link));
+					$span->setValue(current($links));
 				}
 				
 				$value = $span->generate();

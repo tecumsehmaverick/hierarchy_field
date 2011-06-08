@@ -1,79 +1,143 @@
 (function($) {
-	var $table = $('form > table')
+	$('form > table')
 		.live('initialize', function() {
-			var $parents = $table
-				.find('tr:has(span[data-breadcrumb-entry]):not(:has(span[data-breadcrumb-root]))')
-				.addClass('breadcrumb-parent');
-			var $children = $table
-				.find('tr:has(span[data-breadcrumb-root])')
-				.addClass('breadcrumb-child')
+			var $table = $(this);
+			
+			// Hide columns:
+			$table
+				.find('th.field-breadcrumb, td.field-breadcrumb')
 				.hide();
 			
-			$parents
+			// Sort table rows:
+			$table
+				.find('tbody tr span[data-breadcrumb-entry]')
 				.each(function() {
-					var $parent = $(this);
 					var parent_entry = $(this)
-						.find('span[data-breadcrumb-entry]')
+						.attr('data-breadcrumb-parent');
+					var current_depth = $(this)
+						.attr('data-breadcrumb-depth');
+					var current_entry = $(this)
 						.attr('data-breadcrumb-entry');
+					var $current = $(this)
+						.closest('tr');
+					var $children = $table.has(
+						'span[data-breadcrumb-parent = '
+						+ current_entry
+						+ ']'
+					);
 					
-					// Insert toggle control:
+					// Store data:
+					$current
+						.data({
+							'entry':	current_entry,
+							'depth':	current_depth
+						});
+					
+					// Has a parent:
+					if (parent_entry) {
+						var $parent = $table
+							.find(
+								'tbody tr:has(span[data-breadcrumb-entry = '
+								+ parent_entry
+								+ '])'
+							);
+						
+						// Move the child after its parent:
+						$current
+							.addClass('breadcrumb-child')
+							.insertAfter($parent);
+						
+						// Associate child with parent:
+						$current.data().parent = $parent;
+					}
+					
+					// Has children:
+					if ($children.length) {
+						$current
+							.addClass('breadcrumb-parent');
+					}
+				});
+			
+			// Prepare parent items:
+			$table
+				.find('tbody tr.breadcrumb-parent')
+				.each(function() {
+					var $current = $(this);
+					
+					// Associate parent with children:
+					$current.data().children = $table
+						.find(
+							'tbody tr:has(span[data-breadcrumb-parent = '
+							+ $current.data().entry
+							+ '])'
+						);
+					
+					// Insert toggle controls:
 					$('<a />')
 						.addClass('breadcrumb-toggle')
 						.text('►')
 						.prependTo(
-							$parent.find('td:first')
+							$current.find('td:first')
 						)
 						.bind('click', function() {
-							var $self = $(this);
-							var $items = $children
-								.filter(
-									':has(span[data-breadcrumb-root = '
-									+ parent_entry
-									+ '])'
-								);
-							
-							if ($items.is(':visible')) {
-								$items.hide();
-								$self.text('►');
-							}
-							
-							else {
-								$items.show();
-								$self.text('▼');
-							}
+							$current.trigger('toggle-tree');
 							
 							return false;
 						})
 						.bind('mousedown', function() {
 							return false;
 						});
-					
-					$children
-						.filter(
-							':has(span[data-breadcrumb-root = '
-							+ parent_entry
-							+ '])'
-						)
-						
-						// Insert spacer:
-						.each(function() {
-							var $child = $(this);
-							
-							$('<span />')
-								.addClass('breadcrumb-spacer')
-								.prependTo(
-									$child.find('td:first')
-								);
-						})
-						
-						// Move children after their parent:
-						.insertAfter($parent);
 				});
+			
+			// Prepare child items:
+			$table
+				.find('tbody tr.breadcrumb-child')
+				.hide()
+				.each(function() {
+					var $current = $(this);
+					var depth = $current.data().depth;
+					
+					while (depth-- > 0) {
+						$('<span />')
+							.addClass('breadcrumb-spacer')
+							.prependTo(
+								$current.find('td:first')
+							);
+					}
+				});
+		});
+	
+	$('form > table tr.breadcrumb-parent')
+		.live('toggle-tree', function() {
+			var $current = $(this);
+			
+			if ($current.next().is(':visible')) {
+				$current.trigger('collapse-tree');
+			}
+			
+			else {
+				$current.trigger('expand-tree');
+			}
+		})
+		
+		.live('collapse-tree', function() {
+			$(this)
+				.data()
+				.children
+				.trigger('collapse-tree')
+				.hide();
+		})
+		
+		.live('expand-tree', function() {
+			$(this)
+				.data()
+				.children
+				.show();
 		});
 	
 	$(document)
 		.ready(function() {
-			$table = $('form > table');
-			$table.trigger('initialize');
+			$('form > table')
+				.trigger('initialize');
 		});
 })(jQuery);

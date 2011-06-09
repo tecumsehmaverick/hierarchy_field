@@ -1,20 +1,32 @@
-form > table tr.breadcrumb-parent:not(.selected) td,
-form > table tr.breadcrumb-parent:nth-child(2n):not(.selected) td {
-	background-color: #f5f5f4;
+form > table tr.breadcrumb-parent td,
+form > table tr.breadcrumb-parent:nth-child(2n) td {
+	background: #f5f5f4;
 }
-form > table tr.breadcrumb-child:not(.selected) td,
-form > table tr.breadcrumb-child:nth-child(2n):not(.selected) td {
-	background-color: transparent;
+form > table tr.breadcrumb-parent.selected td,
+form > table tr.breadcrumb-parent.selected:nth-child(2n) td {
+	background: #5273c0;
 }
+form > table tr.breadcrumb-child td,
+form > table tr.breadcrumb-child:nth-child(2n) td {
+	background: transparent;
+}
+form > table tr.breadcrumb-child.selected td,
+form > table tr.breadcrumb-child.selected:nth-child(2n) td {
+	background: #5677c3;
+}
+form > table tr.breadcrumb-child.alternating-depth td,
+form > table tr.breadcrumb-child.alternating-depth:nth-child(2n) td {
+	background: #fbfbfc;
+}
+form > table tr.breadcrumb-child.alternating-depth.selected td,
+form > table tr.breadcrumb-child.alternating-depth.selected:nth-child(2n) td {
+	background: #5273c0;
+}
+
 form > table tr td:first-child {
 	overflow: hidden;
 	padding-left: 29px;
 }
-form table tr.breadcrumb-child.alternating-depth:not(.selected) td,
-form table tr.breadcrumb-child.alternating-depth:nth-child(2n):not(.selected) td {
-	background: #fbfbfc;
-}
-
 form > table span.breadcrumb-spacer {
 	border-left: 1px solid hsla(0, 0%, 0%, 0.2);
 	display: inline-block;
@@ -44,8 +56,8 @@ form > table span.breadcrumb-spacer.continued:after {
 form > table span.breadcrumb-spacer.terminated:after {
 	height: 39px;
 }
-form > table .selected span.breadcrumb-spacer,
-form > table .selected span.breadcrumb-spacer:after {
+form > table tr.selected span.breadcrumb-spacer,
+form > table tr.selected span.breadcrumb-spacer:after {
 	border-color: hsla(0, 0%, 100%, 0.3);
 }
 
@@ -58,4 +70,7 @@ form > table a.breadcrumb-toggle {
 	padding-left: 1000px;
 	text-decoration: none;
 	width: 15px;
+}
+form > table tr.selected a.breadcrumb-toggle {
+	color: #ffffff;
 }

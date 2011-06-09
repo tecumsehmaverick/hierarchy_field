@@ -10,6 +10,10 @@ form > table tr td:first-child {
 	overflow: hidden;
 	padding-left: 29px;
 }
+form table tr.breadcrumb-child.alternating-depth:not(.selected) td,
+form table tr.breadcrumb-child.alternating-depth:nth-child(2n):not(.selected) td {
+	background: #fbfbfc;
+}
 
 form > table span.breadcrumb-spacer {
 	border-left: 1px solid hsla(0, 0%, 0%, 0.2);

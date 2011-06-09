@@ -119,6 +119,10 @@
 						}
 					}
 					
+					if (!(current_depth % 2)) {
+						$current.addClass('alternating-depth');
+					}
+					
 					// Insert item spacers:
 					while (temp_depth-- > 0) {
 						var $spacer = $('<span />')

@@ -44,16 +44,16 @@ form > table span.breadcrumb-spacer.continued:after {
 form > table span.breadcrumb-spacer.terminated:after {
 	height: 39px;
 }
-form > table span.breadcrumb-spacer:last-of-type {
-	
-}
 form > table .selected span.breadcrumb-spacer,
 form > table .selected span.breadcrumb-spacer:after {
 	border-color: hsla(0, 0%, 100%, 0.3);
 }
+
 form > table a.breadcrumb-toggle {
+	color: #333333;
 	display: inline-block;
 	height: 40px;
+	font-size: 16px;
 	margin: -40px 1px -40px -1011px;
 	padding-left: 1000px;
 	text-decoration: none;

@@ -1,4 +1,6 @@
 (function($) {
+	var COLLAPSE_ARROW = '▾';
+	var EXPAND_ARROW = '▸';
 	var Cookie = {
 		set: function(name, value, seconds) {
 			var expires = "";
@@ -86,7 +88,7 @@
 						// Insert toggle controls:
 						$('<a />')
 							.addClass('breadcrumb-toggle')
-							.text('►')
+							.text(COLLAPSE_ARROW)
 							.prependTo(
 								$current.find('td:first')
 							)
@@ -267,7 +269,7 @@
 			
 			$current
 				.find('a.breadcrumb-toggle')
-				.text('►');
+				.text(EXPAND_ARROW);
 			
 			$current.data().children
 				.trigger('collapse-tree')
@@ -286,7 +288,7 @@
 			
 			$current
 				.find('a.breadcrumb-toggle')
-				.text('▼');
+				.text(COLLAPSE_ARROW);
 			
 			$current.data().children
 				.show();

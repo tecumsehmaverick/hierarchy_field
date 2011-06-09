@@ -265,6 +265,10 @@
 		.live('collapse-tree', function() {
 			var $current = $(this);
 			
+			$current
+				.find('a.breadcrumb-toggle')
+				.text('►');
+			
 			$current.data().children
 				.trigger('collapse-tree')
 				.hide();
@@ -279,6 +283,10 @@
 		
 		.live('expand-tree', function() {
 			var $current = $(this);
+			
+			$current
+				.find('a.breadcrumb-toggle')
+				.text('▼');
 			
 			$current.data().children
 				.show();

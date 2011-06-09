@@ -12,6 +12,16 @@
 	 * A new link field, used to build hierarchical content.
 	 */
 	class Extension_Breadcrumb_Field extends Extension {
+		/**
+		 * The name of the field settings table.
+		 */
+		const FIELD_TABLE = 'tbl_fields_breadcrumb';
+		
+		/**
+		 * Store entry data by id.
+		 *
+		 * @var array
+		 */
 		static protected $entryCache = array();
 		
 		/**
@@ -20,8 +30,8 @@
 		public function about() {
 			return array(
 				'name'			=> 'Field: Breadcrumb',
-				'version'		=> '0.2',
-				'release-date'	=> '2011-06-01',
+				'version'		=> '0.3',
+				'release-date'	=> '2011-06-09',
 				'author'		=> array(
 					'name'			=> 'Rowan Lewis',
 					'website'		=> 'http://rowanlewis.com/',
@@ -52,24 +62,128 @@
 		 * Cleanup installation.
 		 */
 		public function uninstall() {
-			Symphony::Database()->query("DROP TABLE `tbl_fields_breadcrumb`");
+			Symphony::Database()->query(sprintf(
+				"DROP TABLE `%s`",
+				self::FIELD_TABLE
+			));
 		}
 		
 		/**
 		 * Create tables and configuration.
 		 */
 		public function install() {
-			Symphony::Database()->query("
-				CREATE TABLE IF NOT EXISTS `tbl_fields_breadcrumb` (
+			Symphony::Database()->query(sprintf("
+				CREATE TABLE IF NOT EXISTS `%s` (
 					`id` int(11) unsigned NOT NULL auto_increment,
 					`field_id` int(11) unsigned NOT NULL,
 					`show_tree` enum('yes','no') NOT NULL default 'yes',
 					PRIMARY KEY (`id`),
 					KEY `field_id` (`field_id`)
 				) ENGINE=MyISAM DEFAULT CHARSET=utf8;
-			");
+				",
+				self::FIELD_TABLE
+			));
 			
 			return true;
+		}
+		
+		/**
+		 * Logic that should take place when an extension is to be been updated
+		 * when a user runs the 'Enable' action from the backend. The currently
+		 * installed version of this extension is provided so that it can be
+		 * compared to the current version of the extension in the file system.
+		 * This is commonly done using PHP's version_compare function. Common
+		 * logic done by this method is to update differences between extension
+		 * tables.
+		 *
+		 * @see toolkit.ExtensionManager#update()
+		 * @param string $previousVersion
+		 *  The currently installed version of this extension from the
+		 *  `tbl_extensions` table. The current version of this extension is
+		 *  provided by the about() method.
+		 * @return boolean
+		 */
+		public function update($previousVersion) {
+			// From 0.2 to 0.3:
+			if ($this->updateHasColumn('show_association')) {
+				$this->updateRemoveColumn('show_association');
+			}
+			
+			if ($this->updateHasColumn('show_tree') === false) {
+				$this->updateAddColumn(
+					'show_tree',
+					"enum('yes','no') NOT NULL default 'yes' AFTER `field_id`"
+				);
+			}
+		}
+		
+		public function updateAddColumn($column, $type, $table = self::FIELD_TABLE) {
+			return Symphony::Database()->query(sprintf("
+				ALTER TABLE
+					`%s`
+				ADD COLUMN
+					`{$column}` {$type}
+				",
+				$table
+			));
+		}
+		
+		public function updateHasColumn($column, $table = self::FIELD_TABLE) {
+			return (boolean)Symphony::Database()->fetchVar('Field', 0, sprintf("
+					SHOW COLUMNS FROM
+						`%s`
+					WHERE
+						Field = '{$column}'
+				",
+				$table
+			));
+		}
+		
+		public function updateRemoveColumn($column, $table = self::FIELD_TABLE) {
+			return Symphony::Database()->query(sprintf("
+				ALTER TABLE
+					`%s`
+				DROP COLUMN
+					`{$column}`
+				",
+				$table
+			));
+		}
+		
+		/**
+		 * Update utility, rename a table column.
+		 */
+		public function updateRenameColumn($from, $to, $table = self::FIELD_TABLE) {
+			$data = Symphony::Database()->fetchRow(0, sprintf("
+					SHOW COLUMNS FROM
+						`%s`
+					WHERE
+						Field = '{$from}'
+				",
+				$table
+			));
+			
+			if (!is_null($data['Default'])) {
+				$type = 'DEFAULT ' . var_export($data['Default'], true);
+			}
+			
+			else if ($data['Null'] == 'YES') {
+				$type .= 'DEFAULT NULL';
+			}
+			
+			else {
+				$type .= 'NOT NULL';
+			}
+			
+			return Symphony::Database()->query(sprintf("
+				ALTER TABLE
+					`%s`
+				CHANGE
+					`%s` `%s` %s
+				",
+				$table, $from, $to,
+				$data['Type'] . ' ' . $type
+			));
 		}
 		
 		/**

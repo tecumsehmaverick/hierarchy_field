@@ -1,14 +1,39 @@
 (function($) {
+	var Cookie = {
+		set: function(name, value, seconds) {
+			var expires = "";
+
+			if (seconds) {
+				var date = new Date();
+				date.setTime(date.getTime() + seconds);
+				expires = "; expires=" + date.toGMTString();
+			}
+
+			document.cookie = name + "=" + value + expires + "; path=/";
+		},
+		get: function(name) {
+			var nameEQ = name + "=";
+			var ca = document.cookie.split(';');
+
+			for (var i=0;i < ca.length;i++) {
+				var c = ca[i];
+				while (c.charAt(0)==' ') c = c.substring(1,c.length);
+				if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+			}
+
+			return null;
+		}
+	};
+	
 	$('form > table')
 		.live('initialize', function() {
 			var $table = $(this);
 			
-			// Hide columns:
 			$table
 				.find('th.field-breadcrumb, td.field-breadcrumb')
+				.not(':first-child')
 				.hide();
 			
-			// Sort table rows:
 			$table
 				.find('tbody tr span[data-breadcrumb-entry]')
 				.each(function() {
@@ -20,17 +45,25 @@
 						.attr('data-breadcrumb-entry');
 					var $current = $(this)
 						.closest('tr');
-					var $children = $table.has(
-						'span[data-breadcrumb-parent = '
+					var $children = $table.find(
+						'tbody tr:has(span[data-breadcrumb-parent = '
 						+ current_entry
-						+ ']'
+						+ '])'
 					);
+					var temp_depth = current_depth;
+					var cookie = 'breadcrumb-tree.'
+						+ parent_entry
+						+ '.'
+						+ current_entry;
 					
 					// Store data:
 					$current
 						.data({
-							'entry':	current_entry,
-							'depth':	current_depth
+							'children':		$children,
+							'parent_id':	parent_entry,
+							'entry_id':		current_entry,
+							'depth':		current_depth,
+							'cookie':		cookie
 						});
 					
 					// Has a parent:
@@ -45,55 +78,33 @@
 								);
 					}
 					
-					// Has children:
+					// Is a parent:
 					if ($children.length) {
 						$current
 							.addClass('breadcrumb-parent');
+						
+						// Insert toggle controls:
+						$('<a />')
+							.addClass('breadcrumb-toggle')
+							.text('►')
+							.prependTo(
+								$current.find('td:first')
+							)
+							.bind('click', function() {
+								$current.trigger('toggle-tree');
+								
+								return false;
+							})
+							.bind('mousedown', function() {
+								return false;
+							});
 					}
 				});
 			
-			// Prepare parent items:
-			$table
-				.find('tbody tr.breadcrumb-parent')
-				.each(function() {
-					var $current = $(this);
-					
-					// Associate parent with children:
-					$current.data().children = $table
-						.find(
-							'tbody tr:has(span[data-breadcrumb-parent = '
-							+ $current.data().entry
-							+ '])'
-						);
-					
-					// Insert toggle controls:
-					$('<a />')
-						.addClass('breadcrumb-toggle')
-						.text('►')
-						.prependTo(
-							$current.find('td:first')
-						)
-						.bind('click', function() {
-							$current.trigger('toggle-tree');
-							
-							return false;
-						})
-						.bind('mousedown', function() {
-							return false;
-						});
-				});
-			
-			// Sort tree:
 			$table
 				.find('tbody tr.breadcrumb-parent:not(.breadcrumb-child)')
 				.trigger('sort-tree');
 			
-			// Hide children:
-			$table
-				.find('tbody tr.breadcrumb-child')
-				.hide();
-			
-			// Insert item spacers:
 			$table
 				.find('tbody tr')
 				.each(function() {
@@ -101,6 +112,14 @@
 					var current_depth = $current.data().depth;
 					var temp_depth = current_depth;
 					
+					// Remember collapsed states:
+					if ($current.is('.breadcrumb-parent')) {
+						if (Cookie.get($current.data().cookie) != 'expanded') {
+							$current.trigger('collapse-tree');
+						}
+					}
+					
+					// Insert item spacers:
 					while (temp_depth-- > 0) {
 						var $spacer = $('<span />')
 							.addClass('breadcrumb-spacer')
@@ -163,9 +182,6 @@
 						}
 					}
 				});
-			
-			$table
-				.trigger('redraw');
 		});
 	
 	$('form > table tr.breadcrumb-parent')
@@ -244,7 +260,8 @@
 		
 		.live('collapse-tree', function() {
 			var $current = $(this);
-			var $children = $current.data().children
+			
+			$current.data().children
 				.trigger('collapse-tree')
 				.hide();
 			
@@ -252,12 +269,20 @@
 				$current
 					.trigger('deselect-tree');
 			}
+			
+			Cookie.set($current.data().cookie, 'collapsed');
 		})
 		
 		.live('expand-tree', function() {
 			var $current = $(this);
-			var $children = $current.data().children
+			
+			$current.data().children
 				.show();
+			
+			$current
+				.find('a.breadcrumb-toggle')
+			
+			Cookie.set($current.data().cookie, 'expanded');
 		});
 	
 	$('form > table tr.breadcrumb-child')

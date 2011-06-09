@@ -88,14 +88,18 @@
 				.find('tbody tr.breadcrumb-parent:not(.breadcrumb-child)')
 				.trigger('sort-tree');
 			
+			// Hide children:
+			$table
+				.find('tbody tr.breadcrumb-child')
+				.hide();
+			
 			// Insert item spacers:
 			$table
 				.find('tbody tr')
-				//.hide()
 				.each(function() {
 					var $current = $(this);
-					var temp_depth = $current.data().depth;
-					var current_depth = temp_depth;
+					var current_depth = $current.data().depth;
+					var temp_depth = current_depth;
 					
 					while (temp_depth-- > 0) {
 						var $spacer = $('<span />')
@@ -108,7 +112,10 @@
 					if ($current.is(':last-child')) {
 						$current
 							.find('span.breadcrumb-spacer')
-							.addClass('endpoint');
+							.addClass('ignored')
+							.filter(':last')
+							.removeClass('ignored')
+							.addClass('terminated');
 					}
 					
 					else {
@@ -116,22 +123,49 @@
 						var depth_diff = current_depth - next_depth;
 						
 						if (depth_diff > 0) {
-							$current
-								.find('span.breadcrumb-spacer')
+							var $spacers = $current
+								.find('span.breadcrumb-spacer');
+							
+							$spacers
 								.each(function(index) {
 									if (index > next_depth - 1) {
-										$(this).addClass('endpoint');
+										if (index == $spacers.length - 1) {
+											$(this).addClass('terminated');
+										}
+										
+										else {
+											$(this).addClass('ignored');
+										}
+									}
+									
+									else {
+										$(this).addClass('ignored');
 									}
 								});
 						}
 						
+						else if (depth_diff == -1) {
+							$current
+								.find('span.breadcrumb-spacer')
+								.addClass('ignored')
+								.filter(':last')
+								.removeClass('ignored')
+								.addClass('terminated');
+						}
+						
 						else {
 							$current
-								.find('span.breadcrumb-spacer:last-of-type')
-								.addClass('midpoint');
+								.find('span.breadcrumb-spacer')
+								.addClass('ignored')
+								.filter(':last')
+								.removeClass('ignored')
+								.addClass('continued');
 						}
 					}
 				});
+			
+			$table
+				.trigger('redraw');
 		});
 	
 	$('form > table tr.breadcrumb-parent')
@@ -224,13 +258,6 @@
 			var $current = $(this);
 			var $children = $current.data().children
 				.show();
-			
-			//if ($current.is('.selected')) {
-			//	$children
-			//		.addClass('selected')
-			//		.find('input[type = "checkbox"]')
-			//		.attr('checked', true);
-			//}
 		});
 	
 	$('form > table tr.breadcrumb-child')

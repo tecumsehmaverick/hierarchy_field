@@ -19,18 +19,25 @@ form > table span.breadcrumb-spacer {
 	vertical-align: middle;
 	width: 14px;
 }
-form > table span.breadcrumb-spacer.endpoint {
+form > table span.breadcrumb-spacer.ignored {
+	visibility: hidden;
+}
+form > table span.breadcrumb-spacer.terminated {
+	border-color: hsla(0, 0%, 0%, 0.2);
 	margin-bottom: 0;
 }
-form > table span.breadcrumb-spacer.endpoint:after,
-form > table span.breadcrumb-spacer.midpoint:after {
+form > table span.breadcrumb-spacer.continued {
+	border-color: hsla(0, 0%, 0%, 0.2);
+}
+form > table span.breadcrumb-spacer.terminated:after,
+form > table span.breadcrumb-spacer.continued:after {
 	border-bottom: 1px solid hsla(0, 0%, 0%, 0.2);
 	content: '';
 	display: inline-block;
 	height: 20px;
 	width: 6px;
 }
-form > table span.breadcrumb-spacer.endpoint:after {
+form > table span.breadcrumb-spacer.terminated:after {
 	height: 39px;
 }
 form > table span.breadcrumb-spacer:last-of-type {

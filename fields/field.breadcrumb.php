@@ -515,11 +515,7 @@
 				$span = new XMLElement('span');
 				$span->setAttribute('data-breadcrumb-entry', $entry_id);
 				$span->setAttribute('data-breadcrumb-depth', 0);
-				
-				// If this is not going in the first column, sort it in reverse:
-				if (!$link instanceof XMLElement) {
-					$links = array_reverse($links);
-				}
+				$links = array_reverse($links);
 				
 				if (isset($root_id) && $root_id != $entry_id) {
 					$span->setValue(current($links));

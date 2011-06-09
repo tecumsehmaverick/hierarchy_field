@@ -355,8 +355,20 @@
 			$sm = new SectionManager(Symphony::Engine());
 			$section = $sm->fetch($section_id);
 			$fields = $section->fetchVisibleColumns();
+			$title = null;
 			
-			if (empty($fields)) return null;
+			if (empty($fields)) {
+				throw new Exception('Could not find the primary field.');
+			}
+			
+			foreach ($fields as $field) {
+				if ($field instanceof FieldBreadcrumb) continue;
+				
+				return $field;
+			}
+			
+			// No visible fields!
+			$fields = $section->fetchFields();
 			
 			foreach ($fields as $field) {
 				if ($field instanceof FieldBreadcrumb) continue;

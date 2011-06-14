@@ -254,6 +254,10 @@
 				$field, $entry_id, $ignore_id
 			);
 			
+			usort($items, function($a, $b) {
+				return strcasecmp($a->value, $b->value);
+			});
+			
 			foreach ($items as $item) {
 				$context['options'][$item->entry] = $item->value;
 			}

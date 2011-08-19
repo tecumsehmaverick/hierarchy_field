@@ -3,24 +3,22 @@
 	/**
 	 * @package breadcrumb_field
 	 */
-	
+
 	if (!defined('__IN_SYMPHONY__')) die('<h2>Symphony Error</h2><p>You cannot directly access this file</p>');
-	
-	require_once EXTENSIONS . '/breadcrumb_ui/lib/class.breadcrumb_ui.php';
 
 	/**
-	 * A self linking breadcrumb field.
+	 * A self linking hierarchy field.
 	 */
-	class FieldBreadcrumb extends Field {
+	class FieldHierarchy extends Field {
 		/**
-		 * The breadcrumb field extension driver.
-		 * 
+		 * The hierarchy field extension driver.
+		 *
 		 * @var ExtensionDriver
 		 */
 		public $driver = null;
 
 		/**
-		 * Construct a new instance of the breadcrumb field.
+		 * Construct a new instance of the hierarchy field.
 		 *
 		 * @param mixed $parent
 		 *  The class that created this Field object, usually the FieldManager,
@@ -28,20 +26,23 @@
 		 */
 		public function __construct($parent) {
 			parent::__construct($parent);
-			
-			$this->driver = $this->_engine->ExtensionManager->create('breadcrumb_field');
-			
-			$this->_name = 'Breadcrumb';
+
+			// Make sure UI libs are included:
+			Symphony::ExtensionManager()->create('hierarchy_ui');
+
+			$this->driver = Symphony::ExtensionManager()->create('hierarchy_field');
+
+			$this->_name = 'Hierarchy';
 			$this->_required = true;
 			$this->_showassociation = true;
-			
+
 			// Set defaults:
 			$this->set('show_column', 'no');
 			$this->set('show_association', 'yes');
 			$this->set('required', 'yes');
 			$this->set('related_field_id', null);
 		}
-		
+
 		/**
 		 * Append the formatted xml output of this field as utilized as a data source.
 		 *
@@ -63,11 +64,11 @@
 		 */
 		public function appendFormattedElement(XMLElement $wrapper, $data, $encode = false, $mode = null, $entry_id = null) {
 			if ($entry_id == null) return;
-			
+
 			$element = new XMLElement($this->get('element_name'));
 			$section = $this->driver->getSectionByField($this);
 			$title = $this->driver->getFieldBySectionId($section->get('id'));
-			
+
 			if (
 				$mode == 'children'
 				|| $mode == 'parents'
@@ -79,33 +80,33 @@
 						$this, $entry_id
 					);
 				}
-				
+
 				else if ($mode == 'parents') {
 					$items = $this->driver->getBreadcrumbParents(
 						$this, $data['relation_id']
 					);
 				}
-				
+
 				else if ($mode == 'siblings') {
 					$items = $this->driver->getBreadcrumbChildren(
 						$this, $data['relation_id'], $entry_id
 					);
 				}
-				
+
 				$this->buildFormattedItem($element, $items, $title, $mode);
-				
+
 				$element->setAttribute('mode', $mode);
 				$wrapper->appendChild($element);
 			}
-			
+
 			else if ($mode == 'parent') {
 				$items = $this->driver->getBreadcrumbParents($this, $data['relation_id']);
 				$path = array();
-				
+
 				foreach ($items as $item) {
 					$path[] = $item->handle;
 				}
-				
+
 				if (isset($item)) {
 					$child = new XMLElement('item');
 					$child->setAttribute('id', $item->entry);
@@ -117,16 +118,16 @@
 					$wrapper->appendChild($element);
 				}
 			}
-			
+
 			else {
 				$items = $this->driver->getBreadcrumbParents($this, $data['relation_id']);
 				$item = $items[] = $this->driver->getBreadcrumbItem($title, $entry_id);
 				$path = array();
-				
+
 				foreach ($items as $item) {
 					$path[] = $item->handle;
 				}
-				
+
 				$child = new XMLElement('item');
 				$child->setAttribute('id', $item->entry);
 				$child->setAttribute('path', implode('/', $path));
@@ -137,7 +138,7 @@
 				$wrapper->appendChild($element);
 			}
 		}
-		
+
 		/**
 		 * Utility for building formatted XML.
 		 *
@@ -150,61 +151,61 @@
 			foreach ($items as $item) {
 				$path_items = $this->driver->getBreadcrumbParents($this, $item->entry);
 				$path = array();
-				
+
 				foreach ($path_items as $path_item) {
 					$path[] = $path_item->handle;
 				}
-				
+
 				$path = array_reverse($path);
-				
+
 				$child = new XMLElement('item');
 				$child->setAttribute('id', $item->entry);
 				$child->setAttribute('path', implode('/', $path));
 				$child->setAttribute('handle', $item->handle);
 				$child->setAttribute('value', $item->value);
-				
+
 				if ($mode == 'tree') {
 					$items = $this->driver->getBreadcrumbChildren(
 						$field, $item->entry
 					);
-					
+
 					$this->buildFormattedItem($child, $items, $title, $mode);
 				}
-				
+
 				$element->appendChild($child);
 			}
 		}
-		
+
 		public function buildDSRetrivalSQL($data, &$joins, &$where, $andOperation = false) {
 			$parents = $this->driver->getBreadcrumbChildren($this);
 			$items = array(); $entry_id = null;
 			$field_id = $this->get('id');
-			
+
 			if (preg_match('/^children-of:\s*(.*)/', $data[0], $matches)) {
 				$mode = 'children-of';
 				$paths = preg_split('%/%', $matches[1], 0, PREG_SPLIT_NO_EMPTY);
 			}
-			
+
 			else {
 				$mode = 'item';
 				$paths = preg_split('%/%', $data[0], 0, PREG_SPLIT_NO_EMPTY);
 			}
-			
+
 			// Find the item specified in the path:
 			foreach ($paths as $path) {
 				foreach ($parents as $parent) {
 					if ($parent->handle != $path) continue;
-					
+
 					$items[] = $entry_id = $parent->entry;
 					$parents = $this->driver->getBreadcrumbChildren($this, $parent->entry);
-					
+
 					break;
 				}
 			}
-			
+
 			// Path not found:
 			if (count($items) != count($paths)) return false;
-			
+
 			if ($mode == 'children-of') {
 				$this->_key++;
 				$joins .= "
@@ -212,7 +213,7 @@
 						`tbl_entries_data_{$field_id}` AS t{$field_id}_{$this->_key}
 						ON (e.id = t{$field_id}_{$this->_key}.entry_id)
 				";
-				
+
 				if (count($items)) {
 					$where .= "
 						AND (
@@ -220,7 +221,7 @@
 						)
 					";
 				}
-				
+
 				else {
 					$where .= "
 						AND (
@@ -229,14 +230,14 @@
 					";
 				}
 			}
-			
+
 			if ($mode == 'item') {
 				$where .= sprintf(
 					"AND (e.id = %d)",
 					$entry_id
 				);
 			}
-			
+
 			return true;
 		}
 
@@ -252,7 +253,7 @@
 		public function canFilter() {
 			return true;
 		}
-		
+
 		/**
 		 * Commit the settings of this field from the section editor to
 		 * create an instance of this field in a section.
@@ -262,17 +263,17 @@
 		 */
 		public function commit() {
 			if (!parent::commit()) return false;
-			
+
 			$id = $this->get('id');
 			$handle = $this->handle();
-			
+
 			if ($id === false) return false;
-			
+
 			$fields = array(
 				'field_id'	=> $id,
 				'show_tree'	=> $this->get('show_tree')
 			);
-			
+
 			$this->Database->query("
 				DELETE FROM
 					`tbl_fields_{$handle}`
@@ -280,7 +281,7 @@
 					`field_id` = '{$id}'
 				LIMIT 1
 			");
-			
+
 			return $this->Database->insert($fields, "tbl_fields_{$handle}");
 		}
 
@@ -306,7 +307,7 @@
 				) ENGINE=MyISAM DEFAULT CHARSET=utf8;
 			");
 		}
-		
+
 		/**
 		 * Display the default data-source filter panel.
 		 *
@@ -323,17 +324,17 @@
 		 */
 		public function displayDatasourceFilterPanel($wrapper, $data = null, $errors = null, $prefix = null, $suffix = null) {
 			parent::displayDatasourceFilterPanel($wrapper, $data, $errors, $prefix, $suffix);
-			
+
 			$help = new XMLElement('p');
 			$help->setAttribute('class', 'help');
 			$help->setValue(__('Enter the path to the item you want to select, optionally prepend <code>children-of:</code> to get the children of that item.'));
 
 			$wrapper->appendChild($help);
 		}
-		
+
 		/**
 		 * Display the publish panel for this field. The display panel is the
-		 * interface shown to Authors that allow them to input data into this 
+		 * interface shown to Authors that allow them to input data into this
 		 * field for an Entry.
 		 *
 		 * @param XMLElement $wrapper
@@ -363,31 +364,31 @@
 				$this->get('element_name'),
 				$suffix
 			);
-			
+
 			$this->driver->getBreadcrumbChildren($this, 11, 24);
-			
+
 			$label = Widget::Label($this->get('label'));
-			$breadcrumb = new BreadcrumbUI($name);
-			$breadcrumb->setData('type', $this->get('type'));
-			$breadcrumb->setData('field', $this->get('id'));
-			$breadcrumb->setData('entry', $entry_id);
-			
+			$ui = new BreadcrumbUI($name);
+			$ui->setData('type', $this->get('type'));
+			$ui->setData('field', $this->get('id'));
+			$ui->setData('entry', $entry_id);
+
 			if (isset($data['relation_id'])) {
 				$items = $this->driver->getBreadcrumbParents($this, $data['relation_id']);
 			}
-			
+
 			foreach ($items as $item) {
-				$breadcrumb->appendItem($item->entry, $item->value);
+				$ui->appendItem($item->entry, $item->value);
 			}
-			
+
 			if ($error != null) {
-				$breadcrumb = Widget::wrapFormElementWithError($group, $error);
+				$ui = Widget::wrapFormElementWithError($group, $error);
 			}
 
 			$wrapper->appendChild($label);
-			$wrapper->appendChild($breadcrumb);
+			$wrapper->appendChild($ui);
 		}
-		
+
 		/**
 		 * Display the default settings panel, calls the `buildSummaryBlock`
 		 * function after basic field settings are added to the wrapper.
@@ -400,40 +401,40 @@
 		 */
 		public function displaySettingsPanel($wrapper, $errors = null) {
 			parent::displaySettingsPanel($wrapper, $errors);
-			
+
 			$order = $this->get('sortorder');
-			
+
 			// Options:
 			$list = new XMLElement('div');
 			$list->setAttribute('class', 'compact');
-			
+
 			$input = Widget::Input(
 				"fields[{$order}][show_tree]",
 				'no', 'hidden'
 			);
 			$list->appendChild($input);
-			
+
 			$input = Widget::Input(
 				"fields[{$order}][show_tree]",
 				'yes', 'checkbox'
 			);
-			
+
 			if ($this->get('show_tree') == 'yes') {
 				$input->setAttribute('checked', 'checked');
 			}
-			
+
 			$list->appendChild(Widget::Label(
 				__('%s Use tree view on publish table', array(
 					$input->generate()
 				))
 			));
-			
+
 			$this->appendShowColumnCheckbox($list);
-			
+
 			$wrapper->appendChild($list);
 			$wrapper->setAttribute('class', $wrapper->getAttribute('class') . ' field-textbox');
 		}
-		
+
 		/**
 		 * Default accessor for the includable elements of this field. This array
 		 * will populate the Datasource included elements. Fields that have
@@ -447,7 +448,7 @@
 		public function fetchIncludableElements() {
 			$name = $this->get('element_name');
 			$label = $this->get('label');
-			
+
 			return array(
 				"{$name}: children",
 				"{$name}: parent",
@@ -457,7 +458,7 @@
 				"{$name}: tree"
 			);
 		}
-		
+
 		/**
 		 * Allows a field to set default settings.
 		 *
@@ -469,7 +470,7 @@
 				$fields['show_association'] = 'yes';
 			}
 		}
-		
+
 		/**
 		 * Format this field value for display in the publish index tables. By default,
 		 * Symphony will truncate the value to the configuration setting `cell_truncation_length`.
@@ -486,18 +487,18 @@
 		 */
 		public function prepareTableValue($data, XMLElement $link = null, $entry_id = null) {
 			if ($entry_id == null) return parent::prepareTableValue(null, $link);
-			
+
 			$items = $this->driver->getBreadcrumbParents($this, $entry_id, true);
 			$sm = new SectionManager(Symphony::Engine());
 			$section = $sm->fetch($this->get('parent_section'));
 			$links = array();
-			
+
 			// Build the list of links:
 			foreach ($items as $index => $item) {
 				if ($index == count($items) - 2) {
 					$root_id = $item->entry;
 				}
-				
+
 				$element = new XMLElement('a');
 				$element->setAttribute('href', sprintf(
 					'%s/publish/%s/edit/%d',
@@ -506,48 +507,51 @@
 					$item->entry
 				));
 				$element->setValue($item->value);
-				
+
 				$links[] = $element->generate();
 			}
-			
+
 			// Add extra information for show tree scripts.
 			if ($this->driver->isShowTreeEnabled()) {
+				$driver = Symphony::ExtensionManager()->create('hierarchy_ui');
+				$driver->appendTreeUIHeaders();
+
 				$span = new XMLElement('span');
-				$span->setAttribute('data-breadcrumb-entry', $entry_id);
-				$span->setAttribute('data-breadcrumb-depth', 0);
+				$span->setAttribute('data-tree-ui-entry', $entry_id);
+				$span->setAttribute('data-tree-ui-depth', 0);
 				$links = array_reverse($links);
-				
+
 				if (isset($root_id) && $root_id != $entry_id) {
 					$span->setValue(current($links));
-					$span->setAttribute('data-breadcrumb-parent', $root_id);
-					$span->setAttribute('data-breadcrumb-depth', count($items) - 1);
+					$span->setAttribute('data-tree-ui-parent', $root_id);
+					$span->setAttribute('data-tree-ui-depth', count($items) - 1);
 				}
-				
+
 				else {
 					$span->setValue(current($links));
 				}
-				
+
 				$value = $span->generate();
 			}
-			
+
 			else {
 				// Only provide a link to the current entry when
 				// the system expects it:
-				if (!$link instanceof XMLElement && count($links)) {
+				if ($link instanceof XMLElement === false && count($links)) {
 					array_pop($links);
 				}
-				
+
 				// If this is going in the first column, sort it in reverse:
 				if ($link instanceof XMLElement) {
 					$links = array_reverse($links);
 				}
-				
+
 				$value = implode(' ▸ ', $links);
 			}
-			
+
 			return $value;
 		}
-		
+
 		/**
 		 * An alternative to prepareTableValue that returns a simple
 		 * plain text value without any HTML marlup.
@@ -557,16 +561,16 @@
 		 */
 		public function preparePlainTextValue($data, $entry_id = null) {
 			if ($entry_id == null) return null;
-			
+
 			$items = $this->driver->getBreadcrumbParents($this, $entry_id, true);
 			$sm = new SectionManager(Symphony::Engine());
 			$section = $sm->fetch($this->get('parent_section'));
 			$bits = array();
-			
+
 			foreach ($items as $item) {
 				$bits[] = $item->value;
 			}
-			
+
 			return implode(' ▸ ', $bits);
 		}
 
@@ -591,7 +595,7 @@
 			$result = array(
 				'relation_id'	=> $data
 			);
-			
+
 			return $result;
 		}
 	}

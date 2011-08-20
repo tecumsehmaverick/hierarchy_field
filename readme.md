@@ -2,11 +2,11 @@
 
 A new field that lets you link your entries to each other with an intelligent hierarchy interface.
 
-__Version:__ 0.3
-__Date:__ 9 June 2011
-__Requirements:__ Symphony 2.2
-__Author:__ Rowan Lewis <me@rowanlewis.com>
-__GitHub Repository:__ <http://github.com/rowan-lewis/hierarchy_field>
+__Version:__ 0.3  
+__Date:__ 9 June 2011  
+__Requirements:__ Symphony 2.2  
+__Author:__ Rowan Lewis <me@rowanlewis.com>  
+__GitHub Repository:__ <http://github.com/rowan-lewis/hierarchy_field>  
 
 
 ## Installation
